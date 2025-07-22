@@ -4,6 +4,10 @@ import code
 import readline
 import rlcompleter
 import sys
+import threading
+
+import tornado.web
+import tornado.ioloop
 
 import space
 import funcs
@@ -51,6 +55,25 @@ for func in dir(funcs):
         # print(type(func), funcs.__dict__[func])
         f = NamedFunction(funcs.__dict__[func], func)
         namespace[func] = f
+
+
+def start_server():
+    app = tornado.web.Application([
+        # (r'/(favicon\.ico)', tornado.web.StaticFileHandler, {'path': 'static/'}),
+        # (r'/static/(.*)', tornado.web.StaticFileHandler, {'path': 'static/'}),
+        # (r"/state", StateHandler),
+        # (r"/rpc", RPCHandler),
+        # (r'/api/get_latest_state', GetLatestStateAPIHandler),
+        # (r'/api/query_recent_state', QueryRecentStateAPIHandler),
+    ])
+    app.listen(8888)
+    tornado.ioloop.IOLoop.current().start()
+
+
+server_thread = threading.Thread(target=start_server)
+server_thread.daemon = True  # Thread will close when main program exits
+server_thread.start()
+
 
 # Enable tab completion
 readline.parse_and_bind("tab: complete")
