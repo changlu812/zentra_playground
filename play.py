@@ -1,7 +1,7 @@
 
 
 import code
-import readline
+# import readline
 import rlcompleter
 import sys
 import threading
@@ -11,6 +11,7 @@ import tornado.ioloop
 
 import space
 import funcs
+import rpc
 
 class NamedFunction:
     def __init__(self, f, name):
@@ -57,16 +58,29 @@ for func in dir(funcs):
         namespace[func] = f
 
 
+# class StateHandler(tornado.web.RequestHandler):
+#     def get(self):
+#         self.write(json.dumps({
+#             'grid': game_state.grid,
+#             'score': game_state.score,
+#             'game_over': game_state.game_over
+#         }))
+
+# class ActionHandler(tornado.web.RequestHandler):
+#     def post(self):
+#         direction = self.get_argument('move')
+#         game.move(direction)
+
 def start_server():
     app = tornado.web.Application([
         # (r'/(favicon\.ico)', tornado.web.StaticFileHandler, {'path': 'static/'}),
         # (r'/static/(.*)', tornado.web.StaticFileHandler, {'path': 'static/'}),
         # (r"/state", StateHandler),
-        # (r"/rpc", RPCHandler),
+        (r"/", rpc.RPCHandler),
         # (r'/api/get_latest_state', GetLatestStateAPIHandler),
         # (r'/api/query_recent_state', QueryRecentStateAPIHandler),
     ])
-    app.listen(8888)
+    app.listen(8545)
     tornado.ioloop.IOLoop.current().start()
 
 
@@ -76,7 +90,7 @@ server_thread.start()
 
 
 # Enable tab completion
-readline.parse_and_bind("tab: complete")
+# readline.parse_and_bind("tab: complete")
 
 # Create and start interactive console
 # console = code.InteractiveConsole(namespace)
