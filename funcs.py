@@ -1,6 +1,9 @@
 import string
 from inspect import currentframe, getframeinfo
 
+from eth_utils import keccak
+from eth_account import Account
+# from eth_account.messages import encode_defunct
 from space import put, get, handle_lookup, event
 import space
 
@@ -588,19 +591,26 @@ def privacy_deposit(info, args):
     provider_addr, _ = get(privacy_tick, 'privacy_provider', None)
     msg_to_sign = f'{privacy_tick},privacy_deposit,{str(amount)},{str(amount_cipher)},{str(nonce)}'
 
-    if provider_addr.lower() != _addr_recover(msg_to_sign, signature_hex):
+    recovered_addr = _addr_recover(msg_to_sign, signature_hex)
+    if provider_addr.lower() != recovered_addr:
         return
+
+    transaction_id, provider = get(privacy_tick, 'transaction_count', 0)
+    transaction_id += 1
+    put(provider, privacy_tick, 'transaction_count', transaction_id)
+
+    total_supply, _ = get(privacy_tick, 'total_supply', 0)
+    put(provider, privacy_tick, 'total_supply', int(total_supply) + amount)
 
     balance, _ = get(tick, 'balance', 0, f'{sender}')
     assert balance >= amount
     balance_updated = balance - amount
     put(addr, tick, 'balance', balance_updated, addr)
-    put(addr, privacy_tick, 'tx_count', transaction_id, addr)
 
-    # put(addr, privacy_tick, 'privacy_deposit', f'{str(amount)},{str(amount_cipher)},{str(transaction_id)}', f'{addr}')
     balance_cipher, _ = get(privacy_tick, 'privacy_balance', 1, addr)
     balance_cipher_updated = _homomorphic_add(pub, int(balance_cipher), amount_cipher)
     put(sender, privacy_tick, 'privacy_balance', balance_cipher_updated, sender)
+    put(sender, privacy_tick, 'privacy_nonce', nonce, sender)
     event('PrivacyDeposit', [privacy_tick, addr, amount, amount_cipher, transaction_id])
 
 
@@ -703,7 +713,11 @@ def privacy_withdraw(info, args):
     # 更新
     put(sender, privacy_tick, 'privacy_balance', new_balance_cipher, sender)
     put(sender, privacy_tick, 'privacy_nonce', nonce, sender)
-    put(sender, privacy_tick, 'total_supply', new_total)
+
+    transaction_id, provider = get(privacy_tick, 'transaction_count', 0)
+    transaction_id += 1
+    put(provider, privacy_tick, 'transaction_count', transaction_id)
+    put(provider, privacy_tick, 'total_supply', new_total)
 
     event('PrivacyWithdraw', [sender, amount, new_balance_cipher, nonce])
     # event('PrivacyWithdraw', [privacy_tick, balance_cipher, amount, amount_cipher, transaction_id])
