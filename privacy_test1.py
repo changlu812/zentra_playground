@@ -57,7 +57,7 @@ try:
     funcs.asset_update_functions({'sender': provider_addr}, {
         'p': 'zen', 
         'f': 'asset_update_functions', 
-        'a': ['USDT_P', ['privacy_deposit', 'privacy_withdraw', 'privacy_init', 'token_transfer']]
+        'a': ['USDT_P', ['privacy_deposit', 'privacy_withdraw', 'privacy_init', 'token_transfer', 'privacy_transfer']]
     })
     space.nextblock()
 
@@ -105,6 +105,41 @@ try:
     })
     space.nextblock()
     print("Withdraw successful.")
+
+    # 5. Privacy Transfer
+    print("Step 5: Transferring within privacy...")
+    receiver_addr = '0x002'
+    transfer_amount = 300
+    transfer_nonce = 3
+
+    transfer_amount_cipher = (1 + transfer_amount * paillier_pub) % paillier_n2
+
+    current_sender_cipher = funcs._homomorphic_sub(paillier_pub, amount_cipher, withdraw_amount_cipher)
+    current_receiver_cipher = 1
+
+    msg_to_sign_transfer = (
+        f"USDT_P,privacy_transfer,{user_addr},{receiver_addr},"
+        f"{transfer_nonce},{transfer_amount_cipher},"
+        f"{current_sender_cipher},{current_receiver_cipher}"
+    )
+    signature_transfer = sign_message(msg_to_sign_transfer, provider_key)
+
+    transfer_args = [
+        'USDT_P',
+        receiver_addr,
+        transfer_amount_cipher,
+        current_sender_cipher,
+        current_receiver_cipher,
+        transfer_nonce,
+        signature_transfer
+    ]
+    funcs.privacy_transfer({'sender':user_addr},{
+        'p': 'zen',
+        'f': 'privacy_transfer',
+        'a': transfer_args
+    })
+    space.nextblock()
+    print("Transfer successful")
 
     print_merged_state()
 
