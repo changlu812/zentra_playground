@@ -569,10 +569,6 @@ def privacy_deposit(info, args):
     sender = info['sender']
     addr = handle_lookup(sender)
 
-    # existing_deposit, _ = get(privacy_tick, 'privacy_deposit', None, addr)
-    # if existing_deposit:
-    #     return
-
     amount = int(args['a'][1])
     assert amount >= 0
 
@@ -585,9 +581,7 @@ def privacy_deposit(info, args):
     signature_hex = args['a'][4]
     assert signature_hex.startswith('0x')
 
-    # transaction_id, _privacy_tick_owner = get(privacy_tick, 'tx_count', 0, addr)
     stored_nonce, _ = get(privacy_tick,'privacy_nonce', 0, sender)
-    # print(nonce, stored_nonce)
     assert nonce == stored_nonce + 1
     put(sender, privacy_tick, 'privacy_nonce', nonce, sender)
 
@@ -606,7 +600,6 @@ def privacy_deposit(info, args):
     balance_updated = balance - amount
     put(addr, tick, 'balance', balance_updated, addr)
 
-    # Update pool balance
     pool_balance, _ = get(tick, 'balance', 0, privacy_tick)
     put(privacy_tick, tick, 'balance', int(pool_balance) + amount, privacy_tick)
 
@@ -638,25 +631,19 @@ def privacy_withdraw(info, args):
 
     sender = info['sender'].lower()
 
-    # 读取witness_addr进行签名校验
-    # witness, _ = get(privacy_tick, 'witness_role', None)
     provider_addr, _ = get(privacy_tick, 'privacy_provider', None)
     assert provider_addr is not None, "Provider not initialized"
 
-    # nonce校验，防重放
     stored_nonce, _ = get(privacy_tick,'privacy_nonce', 0, sender)
     assert nonce == int(stored_nonce) + 1, "Invalid nonce"
 
-    # 签名校验
     msg = f"{privacy_tick},privacy_withdraw,{sender},{nonce},{amount},{amount_cipher},{old_balance_cipher}"
     recovered_addr = _addr_recover(msg, signature)
     assert recovered_addr == provider_addr.lower(), "Invalid signature"
 
-    # 获取同态公钥
     pub = _get_pubkey(privacy_tick)
     assert pub is not None
 
-    # 读取并校验链上状态
     stored_balance, _ = get(privacy_tick, 'privacy_balance', 1, sender)
     assert int(stored_balance) == old_balance_cipher, "State mismatch"
 
@@ -664,15 +651,12 @@ def privacy_withdraw(info, args):
     new_total = int(total_supply) - amount
     assert new_total >= 0, "Insufficent total supply"
 
-    # 执行同态减法
     new_balance_cipher = _homomorphic_sub(pub, int(stored_balance), amount_cipher)
 
-    # 更新
     put(sender, privacy_tick, 'privacy_balance', new_balance_cipher, sender)
     put(sender, privacy_tick, 'privacy_nonce', nonce, sender)
     put(provider_addr, privacy_tick, 'total_supply', new_total)
 
-    # Update underlying asset balances
     pool_balance, _ = get(tick, 'balance', 0, privacy_tick)
     put(privacy_tick, tick, 'balance', int(pool_balance) - amount, privacy_tick)
 
@@ -680,8 +664,6 @@ def privacy_withdraw(info, args):
     put(sender, tick, 'balance', int(user_balance) + amount, sender)
 
     event('PrivacyWithdraw', [sender, amount, new_balance_cipher, nonce])
-    # event('PrivacyWithdraw', [privacy_tick, balance_cipher, amount, amount_cipher, transaction_id])
-
 
 
 def privacy_transfer(info,args):
@@ -704,35 +686,24 @@ def privacy_transfer(info,args):
     sender = info['sender'].lower()    
     assert sender != to_addr, "Self-transfer not allowed"
 
-    # 获取provider和公钥
     provider_addr, _ = get(privacy_tick, 'privacy_provider', None)
     assert provider_addr is not None, "Provider not initialized"
     pub = _get_pubkey(privacy_tick)
     assert pub is not None
 
-    # 签名校验
     msg = f"{privacy_tick},privacy_transfer,{sender},{to_addr},{nonce},{amount_cipher}"
     recovered_addr = _addr_recover(msg, signature)
     assert recovered_addr == provider_addr.lower(), "Invalid provider signature"
 
-    # 读取链上实时密文余额并校验
     current_sender_bal, _ = get(privacy_tick, 'privacy_balance', 1, sender)
     current_receiver_bal, _ = get(privacy_tick, 'privacy_balance', 1, to_addr)
-    print(current_sender_bal, current_receiver_bal)
-    # assert int(current_sender_bal) == old_sender_cipher, "Sender balance mismatch"
-    # assert int(current_receiver_bal) == old_receiver_cipher, "Receiver balance mismatch"
 
-    # nonce校验
     stored_nonce, _ = get(privacy_tick, 'privacy_nonce', 0, sender)
     assert nonce == int(stored_nonce) + 1, "Invalid nonce"
 
-    # 链上同态计算
-    print(amount_cipher)
     new_sender_bal = _homomorphic_sub(pub, int(current_sender_bal), amount_cipher)
     new_receiver_bal = _homomorphic_add(pub, int(current_receiver_bal), amount_cipher)
-    print(new_sender_bal, new_receiver_bal)
 
-    # 更新
     put(sender, privacy_tick, 'privacy_balance', new_sender_bal, sender)
     put(sender, privacy_tick,'privacy_nonce', nonce, sender)
     put(to_addr, privacy_tick, 'privacy_balance', new_receiver_bal, to_addr)

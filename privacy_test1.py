@@ -1,9 +1,74 @@
 import space
 import funcs
+import secrets
 from eth_account import Account
 from eth_account.messages import encode_defunct
 from eth_utils import keccak
 from typing import ChainMap
+
+p = 8748842099960345447313630731652402805516069630214453405766470733643016240435346922524211494453926395208032094452365616184409998123133054345264908686154801
+q = 10913953225111233777133529790235905042422493716528276624132211524892437175805771347582813666552903184682738196471955281855703803211165613888365016421534109
+n = 95484453452851151319146099534921060730772215626135961163491913912336477811863582609045983397814414269633849494288732608649821900304800972834742168506707143630327145078886467708821477118434659068956432905871648234970891021733879791975265673569299171364659623036654115772969795595800647152283420826440675607309
+g = 95484453452851151319146099534921060730772215626135961163491913912336477811863582609045983397814414269633849494288732608649821900304800972834742168506707143630327145078886467708821477118434659068956432905871648234970891021733879791975265673569299171364659623036654115772969795595800647152283420826440675607310
+
+
+def gcd(a, b):
+    while b != 0:
+        a, b = b, a % b
+    return a
+
+def egcd(a, b):
+    x0, y0 = 1, 0
+    x1, y1 = 0, 1
+    while b != 0:
+        q = a // b
+        a, b = b, a % b
+        x0, x1 = x1, x0 - q * x1
+        y0, y1 = y1, y0 - q * y1
+    return a, x0, y0
+
+def modinv(a, n):
+    g, x, _ = egcd(a, n)
+    if g != 1:
+        raise ValueError("no modular inverse")
+    return x % n
+
+def lcm(a, b):
+    return a // gcd(a, b) * b
+
+
+paillier_public_key = (n, g)
+# paillier_private_key = (p, q)
+lam = lcm(p - 1, q - 1)
+# g = n + 1, so L(g^lam mod n^2) = lam
+# thus mu = modinv(lam, n)
+mu = modinv(lam, n)
+
+paillier_private_key = (lam, mu)
+
+def encrypt(pub, m):
+    n, g = pub
+    if not (0 <= m < n):
+       raise ValueError("message out of range")
+    n2 = n * n
+    while True:
+        r = secrets.randbelow(n)
+        if r > 0 and gcd(r, n) == 1:
+            break
+    c1 = pow(g, m, n2)
+    c2 = pow(r, n, n2)
+    return (c1 * c2) % n2
+
+
+def decrypt(pub, priv, c):
+    n, g = pub
+    lam, mu = priv
+    n2 = n * n
+    if not (0 <= c < n2):
+        raise ValueError("ciphertext out of range")
+    x = pow(c, lam, n2)
+    l_val = (x - 1) // n
+    return (l_val * mu) % n
 
 # Setup
 space.states = [{}]
@@ -43,13 +108,13 @@ try:
     provider_addr = provider_account.address.lower()
     print(f"Provider address: {provider_addr}")
 
-    paillier_pub = 123456789 # Mock Paillier N
-    paillier_n2 = paillier_pub * paillier_pub
+    # paillier_pub = 123456789 # Mock Paillier N
+    # paillier_n2 = paillier_pub * paillier_pub
 
     funcs.privacy_init({'sender': provider_addr}, {
         'p': 'zen', 
         'f': 'privacy_init', 
-        'a': ['USDT', 'USDT_P', provider_addr, str(paillier_pub)]
+        'a': ['USDT', 'USDT_P', provider_addr, str(paillier_public_key[0])]
     })
     space.nextblock()
 
@@ -76,8 +141,8 @@ try:
     print("Step 3: Depositing into privacy...")
     user_addr = '0x001'
     amount = 1000
-    # amount_cipher = (1 + m*n) % n^2 (Simplified Paillier for testing)
-    amount_cipher = (1 + amount * paillier_pub) % paillier_n2
+    amount_cipher = encrypt(paillier_public_key, int(amount))
+    # print(decrypt(paillier_public_key, paillier_private_key, amount_cipher))
     nonce = 1
 
     msg_to_sign = f'USDT_P,privacy_deposit,{str(amount)},{str(amount_cipher)},{str(nonce)}'
@@ -95,7 +160,8 @@ try:
     # 4. Privacy Withdraw
     print("Step 4: Withdrawing from privacy...")
     withdraw_amount = 400
-    withdraw_amount_cipher = (1 + withdraw_amount * paillier_pub) % paillier_n2
+    withdraw_amount_cipher = encrypt(paillier_public_key, int(withdraw_amount))
+
     old_balance_cipher = amount_cipher # Since it was the first deposit
     withdraw_nonce = 2 # Previous nonce for 0x001 was 1
 
@@ -117,10 +183,10 @@ try:
     transfer_amount = 200
     transfer_nonce = 3
 
-    transfer_amount_cipher = (1 + transfer_amount * paillier_pub) % paillier_n2
+    transfer_amount_cipher = encrypt(paillier_public_key, int(transfer_amount))
 
-    current_sender_cipher = funcs._homomorphic_sub(paillier_pub, amount_cipher, withdraw_amount_cipher)
-    current_receiver_cipher = 1
+    # current_sender_cipher = funcs._homomorphic_sub(paillier_public_key[0], amount_cipher, transfer_amount_cipher)
+    # current_receiver_cipher = 1
 
     msg_to_sign_transfer = (
         f"USDT_P,privacy_transfer,{user_addr},{receiver_addr},"
@@ -143,7 +209,20 @@ try:
     space.nextblock()
     print("Transfer successful")
     state = print_merged_state()
-    print(state['USDT_P-privacy_balance:0x002'])
+
+    encrypted_val = state['USDT_P-privacy_balance:0x001'][1]
+    decoded_val = decrypt(paillier_public_key,
+                    paillier_private_key,
+                    encrypted_val)
+    # print(f"Encrypted balance for 0x001: {encrypted_val}")
+    print(f"Decoded balance for 0x001: {decoded_val}")
+
+    encrypted_val = state['USDT_P-privacy_balance:0x002'][1]
+    decoded_val = decrypt(paillier_public_key,
+                    paillier_private_key,
+                    encrypted_val)
+    # print(f"Encrypted balance for 0x002: {encrypted_val}")
+    print(f"Decoded balance for 0x002: {decoded_val}")
 
 except Exception as e:
     print(f"Test failed with error: {e}")
