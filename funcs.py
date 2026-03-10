@@ -542,7 +542,6 @@ def privacy_init(info, args):
         return
 
     put(provider_addr, privacy_tick, 'tick', tick)
-    put(provider_addr, privacy_tick, 'transaction_count', 0)
     put(provider_addr, privacy_tick, 'privacy_provider', provider_addr)
     put(provider_addr, privacy_tick, 'privacy_pub', int(paillier_pub))
 
@@ -607,6 +606,10 @@ def privacy_deposit(info, args):
     balance_updated = balance - amount
     put(addr, tick, 'balance', balance_updated, addr)
 
+    # Update pool balance
+    pool_balance, _ = get(tick, 'balance', 0, privacy_tick)
+    put(privacy_tick, tick, 'balance', int(pool_balance) + amount, privacy_tick)
+
     balance_cipher, _ = get(privacy_tick, 'privacy_balance', 1, addr)
     balance_cipher_updated = _homomorphic_add(pub, int(balance_cipher), amount_cipher)
     put(sender, privacy_tick, 'privacy_balance', balance_cipher_updated, sender)
@@ -669,6 +672,9 @@ def privacy_withdraw(info, args):
     functions, _ = get('asset', 'functions', [], privacy_tick)
     assert args['f'] in functions
 
+    tick, _ = get(privacy_tick, 'tick', None)
+    _check_tick(tick)
+
     amount = int(args['a'][1])
     assert amount > 0
     amount_cipher = int(args['a'][2])
@@ -713,6 +719,13 @@ def privacy_withdraw(info, args):
     put(sender, privacy_tick, 'privacy_balance', new_balance_cipher, sender)
     put(sender, privacy_tick, 'privacy_nonce', nonce, sender)
     put(provider_addr, privacy_tick, 'total_supply', new_total)
+
+    # Update underlying asset balances
+    pool_balance, _ = get(tick, 'balance', 0, privacy_tick)
+    put(privacy_tick, tick, 'balance', int(pool_balance) - amount, privacy_tick)
+
+    user_balance, _ = get(tick, 'balance', 0, sender)
+    put(sender, tick, 'balance', int(user_balance) + amount, sender)
 
     event('PrivacyWithdraw', [sender, amount, new_balance_cipher, nonce])
     # event('PrivacyWithdraw', [privacy_tick, balance_cipher, amount, amount_cipher, transaction_id])

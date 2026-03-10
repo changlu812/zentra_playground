@@ -32,6 +32,7 @@ try:
     space.nextblock()
     funcs.token_mint_once({'sender':'0x001'}, {'p': 'zen', 'f': 'token_mint_once', 'a':['USDT', 10000]})
     space.nextblock()
+    print_merged_state()
 
     # 2. Initialize Privacy
     print("Step 2: Initializing privacy...")
@@ -68,6 +69,7 @@ try:
         'a': ['USDT', ['token_transfer', 'token_mint_once', 'privacy_deposit']]
     })
     space.nextblock()
+    print_merged_state()
 
     # 3. Privacy Deposit
     print("Step 3: Depositing into privacy...")
@@ -87,6 +89,7 @@ try:
     })
     space.nextblock()
     print("Deposit successful.")
+    print_merged_state()
 
     # 4. Privacy Withdraw
     print("Step 4: Withdrawing from privacy...")
@@ -105,6 +108,7 @@ try:
     })
     space.nextblock()
     print("Withdraw successful.")
+    print_merged_state()
 
     # 5. Privacy Transfer
     print("Step 5: Transferring within privacy...")
@@ -140,7 +144,6 @@ try:
     })
     space.nextblock()
     print("Transfer successful")
-
     print_merged_state()
 
 except Exception as e:

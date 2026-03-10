@@ -14,7 +14,7 @@ def put(_owner, _asset, _var, _value, _key = None):
         var = _var
 
     asset_name = _asset
-    addr = _owner.lower()
+    addr = _owner
     k = '%s-%s' % (asset_name, var)
     state = states[-1]
     state[k] = addr, _value
