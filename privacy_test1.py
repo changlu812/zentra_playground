@@ -22,6 +22,7 @@ def print_merged_state():
     for k in sorted(merged_state.keys()):
         print(f"{k}: {merged_state[k]}")
     print("---------------------------\n")
+    return merged_state
 
 try:
     # 1. Create original asset and token
@@ -113,7 +114,7 @@ try:
     # 5. Privacy Transfer
     print("Step 5: Transferring within privacy...")
     receiver_addr = '0x002'
-    transfer_amount = 300
+    transfer_amount = 200
     transfer_nonce = 3
 
     transfer_amount_cipher = (1 + transfer_amount * paillier_pub) % paillier_n2
@@ -123,8 +124,7 @@ try:
 
     msg_to_sign_transfer = (
         f"USDT_P,privacy_transfer,{user_addr},{receiver_addr},"
-        f"{transfer_nonce},{transfer_amount_cipher},"
-        f"{current_sender_cipher},{current_receiver_cipher}"
+        f"{transfer_nonce},{transfer_amount_cipher}"
     )
     signature_transfer = sign_message(msg_to_sign_transfer, provider_key)
 
@@ -132,8 +132,6 @@ try:
         'USDT_P',
         receiver_addr,
         transfer_amount_cipher,
-        current_sender_cipher,
-        current_receiver_cipher,
         transfer_nonce,
         signature_transfer
     ]
@@ -144,7 +142,8 @@ try:
     })
     space.nextblock()
     print("Transfer successful")
-    print_merged_state()
+    state = print_merged_state()
+    print(state['USDT_P-privacy_balance:0x002'])
 
 except Exception as e:
     print(f"Test failed with error: {e}")
