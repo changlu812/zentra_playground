@@ -35,10 +35,10 @@ def prepare():
     space.nextblock()
 
 
-    call_zip_func('transfer', '0x001', ['BTC', '0x002', 5000])
+    call_zip_func('token_transfer', '0x001', ['BTC', '0x002', 5000])
     space.nextblock()
 
-    call_zip_func('transfer', '0x002', ['USDT', '0x001', 5000])
+    call_zip_func('token_transfer', '0x002', ['USDT', '0x001', 5000])
     space.nextblock()
 
 
