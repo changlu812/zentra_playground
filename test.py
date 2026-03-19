@@ -1,7 +1,6 @@
 
 
 import code
-import readline
 import rlcompleter
 
 import space

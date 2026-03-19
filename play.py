@@ -1,10 +1,13 @@
 
 
 import code
-import readline
 import rlcompleter
 import sys
 import threading
+try:
+    import readline
+except:
+    pass
 
 import tornado.web
 import tornado.ioloop
@@ -76,7 +79,10 @@ server_thread.start()
 
 
 # Enable tab completion
-readline.parse_and_bind("tab: complete")
+try:
+    readline.parse_and_bind("tab: complete")
+except:
+    pass
 
 # Create and start interactive console
 # console = code.InteractiveConsole(namespace)
