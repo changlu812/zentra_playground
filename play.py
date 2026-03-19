@@ -1,7 +1,6 @@
 
 
 import code
-# import readline
 import rlcompleter
 import sys
 import threading
@@ -22,9 +21,8 @@ try:
 except ImportError:
     keccak = None
 
-# 全局函数字典，供 rpc.py 使用
-GLOBAL_FUNCTIONS = {}
 import rpc
+
 
 class NamedFunction:
     def __init__(self, f, name):
@@ -50,7 +48,7 @@ def set_sender(sender):
     space.sender = sender
     namespace['sender'] = space.sender
 
-# Create custom namespace with imported functions
+
 namespace = {
     'put': space.put,
     'get': space.get, 
@@ -77,8 +75,7 @@ def load_all_zips():
         spec = importlib.util.spec_from_loader(module_name, loader)
         mod = importlib.util.module_from_spec(spec)
         loader.exec_module(mod)
-        
-        # 注入全局函数和模块
+
         mod.get = space.get
         mod.put = space.put
         mod.event = space.event
@@ -91,15 +88,16 @@ def load_all_zips():
             mod.keccak = keccak
 
         for attr in dir(mod):
+            if attr in ['put', 'get', 'event', 'handle_lookup']:
+                continue
             if attr.startswith('_'):
                 continue
             func = getattr(mod, attr)
             if callable(func):
+                # print(attr)
                 wrapped = NamedFunction(func, attr)
                 namespace[attr] = wrapped
-                GLOBAL_FUNCTIONS[attr] = func
 
-# 加载所有 ZIPs 逻辑函数
 load_all_zips()
 
 
@@ -138,11 +136,12 @@ if __name__ == "__main__":
     Zentra Interactive python console
     Available commands:
     - put(owner, asset, var, value, key=None)  # Store state
-    - get(asset, var, default=None, key=None)  # Get state
+    - get(asset, var, default=None, key=None)  # Access state
     - blocknumber()  # Current block number
+    - nextblock()  # Start next block
     - states  # View all states
-    - set_sender()  # Current sender
-    - sender  # Current sender
+    - set_sender()  # Set sender
+    - sender  # View sender
 
     Example:
     >>> put('alice', 'USDC', 'balance', 100, 'alice')
