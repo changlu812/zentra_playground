@@ -21,18 +21,15 @@ import func
 func.load_all_zips()
 
 
-# class StateHandler(tornado.web.RequestHandler):
-#     def get(self):
-#         self.write(json.dumps({
-#             'grid': game_state.grid,
-#             'score': game_state.score,
-#             'game_over': game_state.game_over
-#         }))
+class GetLatestStateAPIHandler(tornado.web.RequestHandler):
+    def get(self):
+        prefix = self.get_argument('prefix')
+        print(prefix)
 
-# class ActionHandler(tornado.web.RequestHandler):
-#     def post(self):
-#         direction = self.get_argument('move')
-#         game.move(direction)
+class QueryRecentStateAPIHandler(tornado.web.RequestHandler):
+    def get(self):
+        prefix = self.get_argument('prefix')
+        print(prefix)
 
 def start_server():
     app = tornado.web.Application([
@@ -40,8 +37,8 @@ def start_server():
         (r'/static/(.*)', tornado.web.StaticFileHandler, {'path': 'static/'}),
         # (r"/state", StateHandler),
         (r"/", rpc.RPCHandler),
-        # (r'/api/get_latest_state', GetLatestStateAPIHandler),
-        # (r'/api/query_recent_state', QueryRecentStateAPIHandler),
+        (r'/api/get_latest_state', GetLatestStateAPIHandler),
+        (r'/api/query_recent_state', QueryRecentStateAPIHandler),
     ])
     app.listen(8545)
     tornado.ioloop.IOLoop.current().start()
