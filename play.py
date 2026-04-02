@@ -117,7 +117,7 @@ load_all_zips()
 def start_server():
     app = tornado.web.Application([
         # (r'/(favicon\.ico)', tornado.web.StaticFileHandler, {'path': 'static/'}),
-        # (r'/static/(.*)', tornado.web.StaticFileHandler, {'path': 'static/'}),
+        (r'/static/(.*)', tornado.web.StaticFileHandler, {'path': 'static/'}),
         # (r"/state", StateHandler),
         (r"/", rpc.RPCHandler),
         # (r'/api/get_latest_state', GetLatestStateAPIHandler),
