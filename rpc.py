@@ -104,12 +104,18 @@ def eth_rlp2list(tx_rlp_bytes):
         return [nonce, gas_price, gas, to, value, data, chain_id], [v_standard, r, s]
 
 welcome_message = '''Chain id: %s
-RPC: http://127.0.0.1:8545/rpc
+RPC: http://127.0.0.1:8545
 
 pip install eth-brownie
-brownie networks add playground host=http://127.0.0.1:8545 chainid=%s
-brownie console --network playground
-''' % (CHAIN_ID, CHAIN_ID)
+brownie console
+
+cast
+''' % (CHAIN_ID)
+for i in range(10):
+    private_key = hashlib.sha256(('brownie%s' % i).encode('utf8')).digest()
+    account = web3.Account.from_key(private_key)
+    welcome_message += f'{account.address} < 0x{private_key.hex()}\n'
+
 # HTTP_PROXY=127.0.0.1:7890 brownie console --network playground
 # brownie console --network hardhat
 
@@ -150,6 +156,7 @@ class RPCHandler(tornado.web.RequestHandler):
                 resp = {'jsonrpc': '2.0', 'error': f'Method {func_name} not found in ZIPs', 'id': rpc_id}
             self.write(tornado.escape.json_encode(resp))
             return
+
         if req.get('method') == 'eth_chainId':
             resp = {'jsonrpc':'2.0', 'result': hex(CHAIN_ID), 'id':rpc_id}
 
@@ -409,7 +416,8 @@ class RPCHandler(tornado.web.RequestHandler):
         elif req.get('method') == 'eth_accounts':
             local_accounts = []
             for i in range(10):
-                account = web3.Account.from_key(hashlib.sha256(('brownie%s' % i).encode('utf8')).digest())
+                private_key = hashlib.sha256(('brownie%s' % i).encode('utf8')).digest()
+                account = web3.Account.from_key(private_key)
                 local_accounts.append(account.address)
 
             resp = {'jsonrpc':'2.0', 'result': local_accounts, 'id': rpc_id}
