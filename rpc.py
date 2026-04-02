@@ -1,4 +1,6 @@
 # from __future__ import print_function
+import sys
+import os
 
 import random
 import hashlib
@@ -10,44 +12,23 @@ import binascii
 import tornado.web
 import tornado.gen
 import tornado.escape
-# import tornado.ioloop
-# import tornado.httpserver
-# import tornado.httpclient
 
-# import rocksdb
 import web3
 import eth_account
 import hexbytes
 import rlp
 
 import space
-import sys
-import os
-import importlib.util
 
 CHAIN_ID = 31337
 REVERSED_NO = 10**16
-
-# pathlib.Path("states").mkdir(parents=True, exist_ok=True)
-# conn = rocksdb.DB('states/tempchain.db', rocksdb.Options(create_if_missing=True))
 
 try:
     web3.Web3.toChecksumAddress = web3.Web3.to_checksum_address
 except:
     pass
 
-# class Application(tornado.web.Application):
-#     def __init__(self):
-#         handlers = [
-#             (r"/static/(.*)", tornado.web.StaticFileHandler, {"path": "static/"}),
-#             (r"/", RPCHandler)
-#         ]
-#         settings = {"debug":True}
 
-#         tornado.web.Application.__init__(self, handlers, **settings)
-
-
-latest_block_number = 0
 # latest_block_hash = b'\x00'*32
 # it = conn.iteritems()
 # k = 'blockno-'
@@ -64,9 +45,6 @@ latest_block_number = 0
 
 block_filters = {}
 # transaction_queue = []
-blocks = {}
-transactions = {}
-accounts = {}
 
 
 V_OFFSET = 27
@@ -105,6 +83,7 @@ def eth_rlp2list(tx_rlp_bytes):
 
 welcome_message = '''Chain id: %s
 RPC: http://127.0.0.1:8545
+<a href="http://127.0.0.1:8545/static/call.html">Func call demo</a>
 
 pip install eth-brownie
 brownie console
@@ -125,11 +104,6 @@ class RPCHandler(tornado.web.RequestHandler):
 
     @tornado.gen.coroutine
     def post(self):
-        global blocks
-        global transactions
-        global accounts
-        global latest_block_number
-
         self.add_header('access-control-allow-methods', 'OPTIONS, POST')
         self.add_header('access-control-allow-origin', 'moz-extension://52ed146e-8386-4e74-9dae-5fe4e9ae20c8')
 
@@ -161,19 +135,19 @@ class RPCHandler(tornado.web.RequestHandler):
             resp = {'jsonrpc':'2.0', 'result': hex(CHAIN_ID), 'id':rpc_id}
 
         elif req.get('method') == 'eth_blockNumber':
-            block_number = latest_block_number
+            block_number = space.latest_block_number
             resp = {'jsonrpc':'2.0', 'result': hex(block_number), 'id':rpc_id}
 
         elif req.get('method') == 'eth_getBlockByNumber':
             block_number = req['params'][0]
             if block_number == 'latest':
-                block_number = latest_block_number
+                block_number = space.latest_block_number
             else:
                 block_number = int(block_number, 16)
 
             block_hash = '0x0000000000000000000000000000000000000000000000000000000000000000'
-            if block_number - 1 in blocks:
-                block_hash = '0x' + blocks[block_number - 1]
+            if block_number - 1 in space.blocks:
+                block_hash = '0x' + space.blocks[block_number - 1]
             print('eth_getBlockByNumber', block_number, block_hash)
 
             result = {
@@ -189,7 +163,7 @@ class RPCHandler(tornado.web.RequestHandler):
             address = web3.Web3.toChecksumAddress(req['params'][0])
             block_height = req['params'][1]
             if block_height == 'latest':
-                block_height = latest_block_number
+                block_height = space.latest_block_number
 
             resp = {'jsonrpc':'2.0', 'result': hex(1000000000000000000), 'id':rpc_id}
 
@@ -199,7 +173,7 @@ class RPCHandler(tornado.web.RequestHandler):
             # receipt_json = receipts_tree[transaction_hash.replace('0x', '').encode('utf8')]
             # transaction_json = conn.get(('transaction-%s' % transaction_hash.replace('0x', '')).encode('utf8'))
             # receipt = json.loads(transaction_json)
-            receipt = transactions.get(transaction_hash.replace('0x', '').lower())
+            receipt = space.transactions.get(transaction_hash.replace('0x', '').lower())
             print(receipt)
             block_number = receipt['blockNumber']
             block_hash = '0x'+receipt['block_hash']
@@ -238,14 +212,6 @@ class RPCHandler(tornado.web.RequestHandler):
 
             resp = {'jsonrpc':'2.0', 'result': result, 'id': rpc_id}
 
-        # elif req.get('method') == 'eth_getCode':
-        #     address = web3.Web3.toChecksumAddress(req['params'][0])
-        #     block_height = req['params'][1]
-        #     if block_height == 'latest':
-        #         block_height = latest_block_number
-
-        #     resp = {'jsonrpc':'2.0', 'result': '0x', 'id': rpc_id}
-
         elif req.get('method') == 'eth_gasPrice':
             resp = {'jsonrpc':'2.0', 'result': '0x0', 'id': rpc_id}
 
@@ -254,8 +220,8 @@ class RPCHandler(tornado.web.RequestHandler):
 
         elif req.get('method') == 'eth_getTransactionCount':
             address = web3.Web3.toChecksumAddress(req['params'][0]).lower()
-            accounts.setdefault(address, 0)
-            count = accounts[address]
+            space.accounts.setdefault(address, 0)
+            count = space.accounts[address]
             print('eth_getTransactionCount', address, count)
             # yield tornado.gen.sleep(1)
 
@@ -282,7 +248,7 @@ class RPCHandler(tornado.web.RequestHandler):
             #         break
             #     except:
             #         yield tornado.gen.sleep(1)
-            transaction = transactions.get(transaction_hash)
+            transaction = space.transactions.get(transaction_hash)
 
             resp = {'jsonrpc':'2.0', 'result': transaction, 'id': rpc_id}
 
@@ -299,16 +265,16 @@ class RPCHandler(tornado.web.RequestHandler):
             chain_id = 0
             tx_list = [tx_nonce, gas_price, gas, to, value, data, chain_id]
 
-            count = accounts.get(tx_from, 0)
+            count = space.accounts.get(tx_from, 0)
             print('count', count, 'tx_nonce', tx_nonce)
             assert tx_nonce == count
 
             print('tx_from', tx_from)
             tx_hash = hashlib.sha256((tx_from + str(tx_nonce)).encode('utf8')).digest()
             print('txhash', tx_hash.hex())
-            blocks[latest_block_number] = tx_hash.hex().replace('0x', '')
-            transactions[tx_hash.hex().replace('0x', '')] = {
-                'blockNumber': latest_block_number,
+            space.blocks[space.latest_block_number] = tx_hash.hex().replace('0x', '')
+            space.transactions[tx_hash.hex().replace('0x', '')] = {
+                'blockNumber': space.latest_block_number,
                 'block_hash': tx_hash.hex().replace('0x', ''),
                 'from': tx_from,
                 'input': '0x'+data,
@@ -319,8 +285,8 @@ class RPCHandler(tornado.web.RequestHandler):
             }
             # transaction_queue.append((tx_hash, tx_from, tx_list))
             # yield tornado.gen.sleep(5)
-            accounts[tx_from] = count + 1
-            latest_block_number += 1
+            space.accounts[tx_from] = count + 1
+            space.latest_block_number += 1
             resp = {'jsonrpc':'2.0', 'result': '%s' % tx_hash.hex(), 'id': rpc_id}
 
         elif req.get('method') == 'eth_sendRawTransaction':
@@ -364,37 +330,39 @@ class RPCHandler(tornado.web.RequestHandler):
             else:
                 k = 'account-%s-' % tx_from
                 count = 0
-                it = conn.iteritems()
-                it.seek(k.encode('utf8'))
-                for key, value_json in it:
-                    # print(key)
-                    if not key.startswith(k.encode('utf8')):
-                        break
+                # it = conn.iteritems()
+                # it.seek(k.encode('utf8'))
+                # for key, value_json in it:
+                #     # print(key)
+                #     if not key.startswith(k.encode('utf8')):
+                #         break
 
-                    _, _, reverse_count = key.decode('utf8').split('-')
-                    count = REVERSED_NO - int(reverse_count)
-                    break
+                #     _, _, reverse_count = key.decode('utf8').split('-')
+                #     count = REVERSED_NO - int(reverse_count)
+                #     break
                 # print('tx_nonce', tx_nonce, 'count', count)
+                count = space.accounts.get(tx_from, 0)
                 assert tx_nonce == count
                 print('tx_from', tx_from, 'tx_nonce', tx_nonce)
                 
-                k = 'account-%s-%s' % (tx_from, str(REVERSED_NO - (tx_nonce+1)).zfill(16))
-                conn.put(k.encode('utf8'), raw_tx_bytes)
+                # k = 'account-%s-%s' % (tx_from, str(REVERSED_NO - (tx_nonce+1)).zfill(16))
+                # conn.put(k.encode('utf8'), raw_tx_bytes)
+                space.accounts[tx_from] = count + 1
 
                 print('raw tx', tx_hash.hex())
-                transaction_queue.append((tx_hash, tx_from, tx_list))
-                resp = {'jsonrpc':'2.0', 'result': '%s' % tx_hash.hex(), 'id': rpc_id}
+                # transaction_queue.append((tx_hash, tx_from, tx_list))
+                resp = {'jsonrpc':'2.0', 'result': '0x%s' % tx_hash.hex(), 'id': rpc_id}
 
         elif req.get('method') == 'eth_newBlockFilter':
             filter_id = hex(random.randint(0x10000000000000000000000000000000000000000000, 0xffffffffffffffffffffffffffffffffffffffffffff))
-            block_filters[filter_id] = latest_block_number
+            block_filters[filter_id] = space.latest_block_number
             resp = {'jsonrpc':'2.0', 'result': filter_id, 'id': rpc_id}
 
         elif req.get('method') == 'eth_getFilterChanges':
             filter_id = req['params'][0]
             #print('block_filters', block_filters)
             from_block_number = block_filters.get(filter_id)
-            block_filters[filter_id] = latest_block_number
+            block_filters[filter_id] = space.latest_block_number
 
             block_hashes = []
             if from_block_number:
@@ -438,6 +406,10 @@ class RPCHandler(tornado.web.RequestHandler):
             resp = {'jsonrpc':'2.0', 'result': 1,'id': rpc_id}
 
         elif req.get('method') == 'eth_getCode':
+            resp = {'jsonrpc':'2.0', 'result': '0x','id': rpc_id}
+
+        elif req.get('method') == 'eth_getStorageAt':
+            print('eth_getStorageAt', req)
             resp = {'jsonrpc':'2.0', 'result': '0x','id': rpc_id}
 
         # print(resp)
