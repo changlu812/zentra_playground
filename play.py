@@ -8,7 +8,6 @@ import threading
 import tornado.web
 import tornado.ioloop
 
-import space
 import importlib.util
 import importlib.machinery
 import os
@@ -21,6 +20,7 @@ try:
 except ImportError:
     keccak = None
 
+import space
 import rpc
 
 
@@ -31,6 +31,8 @@ class NamedFunction:
 
     def __call__(self, *args):
         a = list(args)
+        if space.sender is None:
+            raise Exception('sender is not set')
         r = self.f({'sender': space.sender}, {'p': 'zen', 'a': a, 'f': self.name})
         space.nextblock()
         return r

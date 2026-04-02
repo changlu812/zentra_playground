@@ -1,5 +1,9 @@
 
+latest_block_number = 0
 states = [{}]
+blocks = {}
+transactions = {}
+accounts = {}
 
 sender = None
 
@@ -49,5 +53,7 @@ def handle_lookup(_addr):
 
 def nextblock():
     global states
+    global latest_block_number
+    latest_block_number += 1
     states.append({})
 
