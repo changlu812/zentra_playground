@@ -19,6 +19,7 @@ import hexbytes
 import rlp
 
 import space
+import func
 
 CHAIN_ID = 31337
 REVERSED_NO = 10**16
@@ -81,14 +82,14 @@ def eth_rlp2list(tx_rlp_bytes):
         v_standard = chain_naive_v - V_OFFSET
         return [nonce, gas_price, gas, to, value, data, chain_id], [v_standard, r, s]
 
-welcome_message = '''Chain id: %s
-RPC: http://127.0.0.1:8545
-<a href="http://127.0.0.1:8545/static/call.html">Func call demo</a>
-
-pip install eth-brownie
-brownie console
-
-cast
+welcome_message = '''Chain id: %s<br>
+RPC: http://127.0.0.1:8545<br>
+<a href="http://127.0.0.1:8545/static/call.html">Func call demo</a><br>
+<br>
+pip install eth-brownie<br>
+brownie console<br>
+<br>
+cast<br>
 ''' % (CHAIN_ID)
 for i in range(10):
     private_key = hashlib.sha256(('brownie%s' % i).encode('utf8')).digest()
@@ -100,7 +101,7 @@ for i in range(10):
 
 class RPCHandler(tornado.web.RequestHandler):
     def get(self):
-        self.finish(welcome_message.replace('\n', '<br>'))
+        self.finish(welcome_message)
 
     @tornado.gen.coroutine
     def post(self):
@@ -316,42 +317,20 @@ class RPCHandler(tornado.web.RequestHandler):
                 tx_nonce = tx.nonce
 
             tx_from = eth_account.Account._recover_hash(tx_hash, vrs=vrs).lower()
-            # url = f"http://127.0.0.1:{setting.INDEXER_PORT}/entry?addr={tx_from}"
-            # http_client = tornado.httpclient.AsyncHTTPClient()
-            # response = yield http_client.fetch(url)
-            # data = json.loads(response.body)
-            data = {'entry': True, 'credit': 1000000000000000000}
-            print(data)
-            if not data['entry']:
-                resp = {'jsonrpc':'2.0', 'error': {
-                            			    "code": -32000,
-			                                "message": "Not enough PoW credit for POWid to access chain"
-                		}, 'id': rpc_id}
-            else:
-                k = 'account-%s-' % tx_from
-                count = 0
-                # it = conn.iteritems()
-                # it.seek(k.encode('utf8'))
-                # for key, value_json in it:
-                #     # print(key)
-                #     if not key.startswith(k.encode('utf8')):
-                #         break
-
-                #     _, _, reverse_count = key.decode('utf8').split('-')
-                #     count = REVERSED_NO - int(reverse_count)
-                #     break
-                # print('tx_nonce', tx_nonce, 'count', count)
-                count = space.accounts.get(tx_from, 0)
-                assert tx_nonce == count
-                print('tx_from', tx_from, 'tx_nonce', tx_nonce)
-                
-                # k = 'account-%s-%s' % (tx_from, str(REVERSED_NO - (tx_nonce+1)).zfill(16))
-                # conn.put(k.encode('utf8'), raw_tx_bytes)
-                space.accounts[tx_from] = count + 1
-
-                print('raw tx', tx_hash.hex())
-                # transaction_queue.append((tx_hash, tx_from, tx_list))
-                resp = {'jsonrpc':'2.0', 'result': '0x%s' % tx_hash.hex(), 'id': rpc_id}
+            count = space.accounts.get(tx_from, 0)
+            assert tx_nonce == count
+            print('tx_from', tx_from, 'tx_nonce', tx_nonce)
+            space.accounts[tx_from] = count + 1
+            print('raw tx', tx_hash.hex())
+            print('tx_data', tx_data)
+            try:
+                data_bytes = binascii.unhexlify(tx_data.replace('0x', ''))
+                data_json = json.loads(data_bytes.decode('utf-8'))
+                print('parsed_json', data_json)
+            except Exception as e:
+                print('failed to parse tx_data as json', e)
+            # transaction_queue.append((tx_hash, tx_from, tx_list))
+            resp = {'jsonrpc':'2.0', 'result': '0x%s' % tx_hash.hex(), 'id': rpc_id}
 
         elif req.get('method') == 'eth_newBlockFilter':
             filter_id = hex(random.randint(0x10000000000000000000000000000000000000000000, 0xffffffffffffffffffffffffffffffffffffffffffff))
