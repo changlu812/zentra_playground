@@ -1,10 +1,11 @@
 import * as ethers from 'https://cdn.jsdelivr.net/npm/ethers@6.15.0/+esm';
 
 const ZEN_ADDR = '0x00000000000000000000000000000000007a656e'; // hex of 'zen'
-const INDEXER_URL = 'https://mainnet.zentra.dev';
-const CHAIN_ID = 31337n; // Anvil
-// const RPC_URL = 'https://mainnet.base.org';
+// const INDEXER_URL = 'https://mainnet.zentra.dev';
 const RPC_URL = 'http://127.0.0.1:8545';
+// const RPC_URL = 'https://mainnet.base.org';
+const INDEXER_URL = RPC_URL; // this should be the indexer address, but in the test it point to rpc url
+const CHAIN_ID = 31337n; // Anvil
 
 // --- DOM ELEMENTS ---
 const connectButton = document.getElementById('connectButton');
@@ -15,22 +16,15 @@ const networkNameSpan = document.getElementById('networkName');
 const networkSwitchPanel = document.getElementById('networkSwitchPanel');
 const switchNetworkButton = document.getElementById('switchNetworkButton');
 
-const tabTransfer = document.getElementById('tab-transfer');
-const tabCustom = document.getElementById('tab-custom');
-const contentTransfer = document.getElementById('content-transfer');
-const contentCustom = document.getElementById('content-custom');
-
-const transferButton = document.getElementById('transferButton');
 const customJsonButton = document.getElementById('customJsonButton');
 const transferResult = document.getElementById('transferResult');
 const balanceList = document.getElementById('balance-list');
 
-// --- STATE ---
+
 let provider;
 let signer;
 let userAddress;
 
-// --- FUNCTIONS ---
 
 const showMessage = (message, type) => {
   console.log(`[${type}] ${message}`);
@@ -39,24 +33,6 @@ const showMessage = (message, type) => {
     transferResult.innerHTML = `<span class="${color} font-bold">${message}</span>`;
   }
 };
-
-// const switchTab = (tab) => {
-//   if (tab === 'transfer') {
-//     tabTransfer.classList.add('text-blue-600', 'border-blue-600');
-//     tabTransfer.classList.remove('text-gray-500', 'border-transparent');
-//     tabCustom.classList.remove('text-blue-600', 'border-blue-600');
-//     tabCustom.classList.add('text-gray-500', 'border-transparent');
-//     contentTransfer.classList.remove('hidden');
-//     contentCustom.classList.add('hidden');
-//   } else {
-//     tabCustom.classList.add('text-blue-600', 'border-blue-600');
-//     tabCustom.classList.remove('text-gray-500', 'border-transparent');
-//     tabTransfer.classList.remove('text-blue-600', 'border-blue-600');
-//     tabTransfer.classList.add('text-gray-500', 'border-transparent');
-//     contentCustom.classList.remove('hidden');
-//     contentTransfer.classList.add('hidden');
-//   }
-// };
 
 async function fetch_decimal(token) {
   try {
@@ -203,44 +179,44 @@ const connectWallet = async () => {
   }
 };
 
-const handleTransfer = async () => {
-  const tick = document.getElementById('transfer_tick').value;
-  const to = document.getElementById('transfer_to').value;
-  const amountStr = document.getElementById('transfer_amount').value;
+// const handleTransfer = async () => {
+//   const tick = document.getElementById('transfer_tick').value;
+//   const to = document.getElementById('transfer_to').value;
+//   const amountStr = document.getElementById('transfer_amount').value;
 
-  if (!tick || !to || !amountStr) {
-    return showMessage('Please fill in all fields', 'error');
-  }
+//   if (!tick || !to || !amountStr) {
+//     return showMessage('Please fill in all fields', 'error');
+//   }
 
-  try {
-    transferButton.disabled = true;
-    transferButton.innerText = "Processing...";
+//   try {
+//     transferButton.disabled = true;
+//     transferButton.innerText = "Processing...";
 
-    const decimal = await fetch_decimal(tick);
-    const amount = ethers.parseUnits(amountStr, decimal);
+//     const decimal = await fetch_decimal(tick);
+//     const amount = ethers.parseUnits(amountStr, decimal);
 
-    const calldata = {
-      "p": "zen",
-      "f": "token_transfer",
-      "a": [tick, to, amount.toString()],
-    };
+//     const calldata = {
+//       "p": "zen",
+//       "f": "token_transfer",
+//       "a": [tick, to, amount.toString()],
+//     };
 
-    const tx = await signer.sendTransaction({
-      to: ZEN_ADDR,
-      data: ethers.hexlify(new TextEncoder().encode(JSON.stringify(calldata)))
-    });
+//     const tx = await signer.sendTransaction({
+//       to: ZEN_ADDR,
+//       data: ethers.hexlify(new TextEncoder().encode(JSON.stringify(calldata)))
+//     });
 
-    showMessage(`Transaction sent: ${tx.hash}`, 'success');
-    fetch_tx(tx.hash.slice(2));
+//     showMessage(`Transaction sent: ${tx.hash}`, 'success');
+//     fetch_tx(tx.hash.slice(2));
 
-  } catch (error) {
-    console.error(error);
-    showMessage(`Transfer failed: ${error.message}`, 'error');
-  } finally {
-    transferButton.disabled = false;
-    transferButton.innerText = "Transfer Token";
-  }
-};
+//   } catch (error) {
+//     console.error(error);
+//     showMessage(`Transfer failed: ${error.message}`, 'error');
+//   } finally {
+//     transferButton.disabled = false;
+//     transferButton.innerText = "Transfer Token";
+//   }
+// };
 
 const handleCustomJson = async () => {
   const jsonStr = document.getElementById('custom_json').value;
@@ -270,136 +246,14 @@ const handleCustomJson = async () => {
   }
 };
 
-// --- INITIALIZATION ---
 const init = async () => {
   if (connectButton) connectButton.addEventListener('click', connectWallet);
   if (switchNetworkButton) switchNetworkButton.addEventListener('click', switchNetwork);
 
   // if (tabTransfer) tabTransfer.addEventListener('click', () => switchTab('transfer'));
   // if (tabCustom) tabCustom.addEventListener('click', () => switchTab('custom'));
-
-  if (transferButton) transferButton.addEventListener('click', handleTransfer);
+  // if (transferButton) transferButton.addEventListener('click', handleTransfer);
   if (customJsonButton) customJsonButton.addEventListener('click', handleCustomJson);
-
-  // // Snake game logic (preserved)
-  // const canvas = document.getElementById('snakeCanvas');
-  // if (canvas) {
-  //   const ctx = canvas.getContext('2d');
-  //   const pixelSize = 12;
-  //   let width, height, cols, rows;
-  //   let score = 210000n;
-
-  //   const resize = () => {
-  //     width = window.innerWidth;
-  //     height = window.innerHeight;
-  //     canvas.width = width;
-  //     canvas.height = height;
-  //     cols = Math.floor(width / pixelSize);
-  //     rows = Math.floor(height / pixelSize);
-  //   }
-  //   window.addEventListener('resize', resize);
-
-  //   class Food {
-  //     constructor() { this.respawn(); }
-  //     draw() {
-  //       const centerX = this.x * pixelSize + pixelSize / 2;
-  //       const centerY = this.y * pixelSize + pixelSize / 2;
-  //       const radius = pixelSize / 2;
-  //       ctx.fillStyle = 'gold';
-  //       ctx.beginPath();
-  //       ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-  //       ctx.fill();
-  //       ctx.fillStyle = 'black';
-  //       ctx.font = `${pixelSize * 0.7}px Arial`;
-  //       ctx.textAlign = 'center';
-  //       ctx.textBaseline = 'middle';
-  //       ctx.fillText('Z', centerX, centerY);
-  //     }
-  //     respawn() {
-  //       this.x = Math.floor(Math.random() * cols);
-  //       this.y = Math.floor(Math.random() * rows);
-  //     }
-  //   }
-
-  //   class Snake {
-  //     constructor() {
-  //       this.body = [{ x: 0, y: rows - 1 }];
-  //       this.dx = 0; this.dy = -1;
-  //     }
-  //     move() {
-  //       const head = { x: this.body[0].x + this.dx, y: this.body[0].y + this.dy };
-  //       this.body.unshift(head);
-  //       let ateFood = false;
-  //       for (let i = foods.length - 1; i >= 0; i--) {
-  //         if (head.x === foods[i].x && head.y === foods[i].y) {
-  //           foods.splice(i, 1);
-  //           score -= 1n;
-  //           ateFood = true;
-  //           break;
-  //         }
-  //       }
-  //       if (!ateFood && this.body.length > 50) this.body.pop();
-
-  //       if (Math.random() < 0.1) {
-  //         const newDirection = Math.floor(Math.random() * 4);
-  //         if (newDirection === 0 && this.dy !== 1) { this.dx = 0; this.dy = -1; }
-  //         else if (newDirection === 1 && this.dy !== -1) { this.dx = 0; this.dy = 1; }
-  //         else if (newDirection === 2 && this.dx !== 1) { this.dx = -1; this.dy = 0; }
-  //         else if (newDirection === 3 && this.dx !== -1) { this.dx = 1; this.dy = 0; }
-  //       }
-
-  //       if (head.x < 0) head.x = cols - 1;
-  //       if (head.x >= cols) head.x = 0;
-  //       if (head.y < 0) head.y = rows - 1;
-  //       if (head.y >= rows) head.y = 0;
-  //     }
-  //     draw() {
-  //       ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
-  //       this.body.forEach(segment => {
-  //         ctx.fillRect(segment.x * pixelSize, segment.y * pixelSize, pixelSize, pixelSize);
-  //       });
-  //     }
-  //   }
-
-  //   const drawGrid = () => {
-  //     ctx.strokeStyle = 'rgba(0, 255, 0, 0.1)';
-  //     ctx.beginPath();
-  //     for (let x = 0; x < cols; x++) { ctx.moveTo(x * pixelSize, 0); ctx.lineTo(x * pixelSize, height); }
-  //     for (let y = 0; y < rows; y++) { ctx.moveTo(0, y * pixelSize); ctx.lineTo(width, y * pixelSize); }
-  //     ctx.stroke();
-  //   }
-
-  //   const drawScore = () => {
-  //     ctx.fillStyle = 'gold';
-  //     ctx.font = '20px "Press Start 2P", monospace';
-  //     ctx.textAlign = 'left';
-  //     ctx.textBaseline = 'bottom';
-  //     ctx.fillText(`${score.toString()} ZTC`, 10, height - 10);
-  //   }
-
-  //   const animate = () => {
-  //     ctx.clearRect(0, 0, width, height);
-  //     drawGrid();
-  //     snake.move();
-  //     snake.draw();
-  //     foods.forEach(food => food.draw());
-  //     drawScore();
-  //     setTimeout(animate, 100);
-  //   }
-
-  //   resize();
-  //   const snake = new Snake();
-  //   const foods = [];
-  //   for (let i = 0; i < 100; i++) foods.push(new Food());
-  //   animate();
-  // }
-
-  // // Mobile menu
-  // const mobileMenuButton = document.getElementById('mobile-menu-button');
-  // const mobileMenu = document.getElementById('mobile-menu');
-  // if (mobileMenuButton && mobileMenu) {
-  //   mobileMenuButton.addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
-  // }
 
   if (window.ethereum) {
     window.ethereum.on('chainChanged', () => window.location.reload());

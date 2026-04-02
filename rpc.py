@@ -327,6 +327,8 @@ class RPCHandler(tornado.web.RequestHandler):
                 data_bytes = binascii.unhexlify(tx_data.replace('0x', ''))
                 data_json = json.loads(data_bytes.decode('utf-8'))
                 print('parsed_json', data_json)
+                func.set_sender(tx_from)
+                func.namespace[data_json['f']](*data_json['a'])
             except Exception as e:
                 print('failed to parse tx_data as json', e)
             # transaction_queue.append((tx_hash, tx_from, tx_list))
