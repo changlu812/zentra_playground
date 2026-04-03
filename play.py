@@ -75,9 +75,10 @@ if __name__ == "__main__":
     - get(asset, var, default=None, key=None)  # Access state
     - blocknumber()  # Current block number
     - nextblock()  # Start next block
-    - set_sender()  # Set sender
+    - sender()  # Set sender
     - states  # View all states
     - sender  # View sender
+    - accounts  # View accounts or shortcut a  # View accounts
 
     Example:
     >>> put('alice', 'USDC', 'balance', 100, 'alice')
@@ -86,6 +87,7 @@ if __name__ == "__main__":
     >>> states
     [{'asset-balance': {'alice': 100}}]
     >>> nextblock()
+    >>> sender(a[0])
     >>> asset_create('USDC')
     Ok, let's start!
     """, local=func.namespace)
