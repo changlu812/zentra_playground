@@ -36,7 +36,7 @@ def get_block_number():
     return len(space.states)
 
 def set_sender(sender):
-    space.sender = sender
+    space.sender = sender.lower()
     namespace['sender'] = space.sender
 
 
