@@ -34,7 +34,7 @@ class NamedFunction:
         return self.f.__repr__()
 
 def get_block_number():
-    return len(space.states)
+    return len(space.states) - 1
 
 def set_sender(sender):
     space.sender = sender.lower()
@@ -45,14 +45,14 @@ accounts = []
 for i in range(10):
     private_key = hashlib.sha256(('brownie%s' % i).encode('utf8')).digest()
     account = web3.Account.from_key(private_key)
-    accounts.append(account.address)
+    accounts.append(account.address.lower())
 
 namespace = {
     'put': space.put,
     'get': space.get, 
     'blocknumber': get_block_number,
     'nextblock': space.nextblock,
-    'set_sender': set_sender,
+    'sender': set_sender,
     'states': space.states,
     'sender': space.sender,
     'accounts': accounts,
