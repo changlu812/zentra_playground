@@ -25,6 +25,17 @@ class GetLatestStateAPIHandler(tornado.web.RequestHandler):
     def get(self):
         prefix = self.get_argument('prefix')
         print(prefix)
+        prefix = prefix.split('-')
+        asset = prefix[1]
+        if ':' in prefix[2]:
+            var, key = prefix[2].split(':')
+            value, owner = space.get(asset, var, None, key)
+        else:
+            var = prefix[2]
+            key = None
+            value, owner = space.get(asset, var, None)
+        print(value)
+        self.finish({'result': value})
 
 class QueryRecentStateAPIHandler(tornado.web.RequestHandler):
     def get(self):
