@@ -3,7 +3,7 @@ latest_block_number = 0
 states = [{}]
 blocks = {}
 transactions = {}
-accounts = {}
+nonces = {}
 
 sender = None
 

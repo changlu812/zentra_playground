@@ -94,7 +94,7 @@ cast<br>
 for i in range(10):
     private_key = hashlib.sha256(('brownie%s' % i).encode('utf8')).digest()
     account = web3.Account.from_key(private_key)
-    welcome_message += f'{account.address} < 0x{private_key.hex()}\n'
+    welcome_message += f'{account.address} < 0x{private_key.hex()}<br>'
 
 # HTTP_PROXY=127.0.0.1:7890 brownie console --network playground
 # brownie console --network hardhat
@@ -221,8 +221,8 @@ class RPCHandler(tornado.web.RequestHandler):
 
         elif req.get('method') == 'eth_getTransactionCount':
             address = web3.Web3.toChecksumAddress(req['params'][0]).lower()
-            space.accounts.setdefault(address, 0)
-            count = space.accounts[address]
+            space.nonces.setdefault(address, 0)
+            count = space.nonces[address]
             print('eth_getTransactionCount', address, count)
             # yield tornado.gen.sleep(1)
 
@@ -266,7 +266,7 @@ class RPCHandler(tornado.web.RequestHandler):
             chain_id = 0
             tx_list = [tx_nonce, gas_price, gas, to, value, data, chain_id]
 
-            count = space.accounts.get(tx_from, 0)
+            count = space.nonces.get(tx_from, 0)
             print('count', count, 'tx_nonce', tx_nonce)
             assert tx_nonce == count
 
@@ -286,7 +286,7 @@ class RPCHandler(tornado.web.RequestHandler):
             }
             # transaction_queue.append((tx_hash, tx_from, tx_list))
             # yield tornado.gen.sleep(5)
-            space.accounts[tx_from] = count + 1
+            space.nonces[tx_from] = count + 1
             space.latest_block_number += 1
             resp = {'jsonrpc':'2.0', 'result': '%s' % tx_hash.hex(), 'id': rpc_id}
 
@@ -317,10 +317,10 @@ class RPCHandler(tornado.web.RequestHandler):
                 tx_nonce = tx.nonce
 
             tx_from = eth_account.Account._recover_hash(tx_hash, vrs=vrs).lower()
-            count = space.accounts.get(tx_from, 0)
-            assert tx_nonce == count
+            count = space.nonces.get(tx_from, 0)
             print('tx_from', tx_from, 'tx_nonce', tx_nonce)
-            space.accounts[tx_from] = count + 1
+            assert tx_nonce == count
+            space.nonces[tx_from] = count + 1
             print('raw tx', tx_hash.hex())
             print('tx_data', tx_data)
             try:

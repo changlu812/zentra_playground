@@ -42,6 +42,13 @@ class QueryRecentStateAPIHandler(tornado.web.RequestHandler):
         prefix = self.get_argument('prefix')
         print(prefix)
 
+
+class EventsAPIHandler(tornado.web.RequestHandler):
+    def get(self):
+        txhash = self.get_argument('txhash')
+        print(txhash)
+        self.finish({'result': []})
+
 def start_server():
     app = tornado.web.Application([
         # (r'/(favicon\.ico)', tornado.web.StaticFileHandler, {'path': 'static/'}),
@@ -50,6 +57,7 @@ def start_server():
         (r"/", rpc.RPCHandler),
         (r'/api/get_latest_state', GetLatestStateAPIHandler),
         (r'/api/query_recent_state', QueryRecentStateAPIHandler),
+        (r'/api/events', EventsAPIHandler),
     ])
     app.listen(8545)
     tornado.ioloop.IOLoop.current().start()
