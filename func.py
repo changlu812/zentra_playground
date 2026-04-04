@@ -52,7 +52,7 @@ namespace = {
     'get': space.get, 
     'blocknumber': get_block_number,
     'nextblock': space.nextblock,
-    'sender': set_sender,
+    'setsender': set_sender,
     'states': space.states,
     'sender': space.sender,
     'accounts': accounts,

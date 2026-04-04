@@ -75,7 +75,7 @@ if __name__ == "__main__":
     - get(asset, var, default=None, key=None)  # Access state
     - blocknumber()  # Current block number
     - nextblock()  # Start next block
-    - sender()  # Set sender
+    - setsender()  # Set sender
     - states  # View all states
     - sender  # View sender
     - accounts  # View accounts or shortcut a  # View accounts
