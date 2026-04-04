@@ -75,8 +75,8 @@ if __name__ == "__main__":
     - get(asset, var, default=None, key=None)  # Access state
     - blocknumber()  # Current block number
     - nextblock()  # Start next block
+    - setsender()  # Set sender
     - states  # View all states
-    - setsender()  # Current sender
     - sender  # Current sender
 
     Example:
