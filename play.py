@@ -24,6 +24,8 @@ import func
 
 func.load_all_zips()
 
+GLOBAL_FUNCTIONS = func.namespace
+
 
 class GetLatestStateAPIHandler(tornado.web.RequestHandler):
     def get(self):
@@ -94,7 +96,7 @@ if __name__ == "__main__":
     >>> states
     [{'asset-balance': {'alice': 100}}]
     >>> nextblock()
-    >>> sender(a[0])
+    >>> setsender(a[0])
     >>> asset_create('USDC')
     Ok, let's start!
     """, local=func.namespace)
