@@ -4,6 +4,10 @@ import code
 import rlcompleter
 import sys
 import threading
+try:
+    import readline
+except:
+    pass
 
 import tornado.web
 import tornado.ioloop
@@ -67,6 +71,10 @@ if __name__ == "__main__":
     server_thread = threading.Thread(target=start_server)
     server_thread.daemon = True  # Thread will close when main program exits
     server_thread.start()
+    try:
+        readline.parse_and_bind("tab: complete")
+    except:
+        pass
 
     code.interact(banner="""
     Zentra Interactive python console
