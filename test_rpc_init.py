@@ -14,13 +14,9 @@ w3 = web3.Web3(web3.Web3.HTTPProvider(PROVIDER_HOST))
 ZEN_ADDR = '0x00000000000000000000000000000000007A656e'# hex of 'zen'
 
 
-if __name__ == '__main__':
-    account = setting.account0
-
+def transaction(account, call):
     nonce = w3.eth.get_transaction_count(account.address)
     print(account.address, nonce)
-    call = '{"p": "zen", "f": "handle_purchase", "a": ["powid5"]}'
-    print(call)
     transaction = {
         'from': account.address,
         'to': ZEN_ADDR,
@@ -36,4 +32,17 @@ if __name__ == '__main__':
 
     signed = w3.eth.account.sign_transaction(transaction, account.key)
     tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
-    print(tx_hash.hex())
+    # print(tx_hash.hex())
+    return tx_hash.hex()
+
+
+if __name__ == '__main__':
+    call = '{"p": "zen", "f": "asset_create", "a": ["USDC"]}'
+    print(call)
+    tx_hash = transaction(setting.accounts[0], call)
+    print(tx_hash)
+
+    call = '{"p": "zen", "f": "token_create", "a": ["USDC", "Mock USDC", 6]}'
+    print(call)
+    tx_hash = transaction(setting.accounts[0], call)
+    print(tx_hash)

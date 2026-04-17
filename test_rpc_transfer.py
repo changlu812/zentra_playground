@@ -10,7 +10,8 @@ from test_rpc_init import *
 from setting import accounts
 
 if __name__ == '__main__':
-    call = '{"p": "zen", "f": "token_mint_once", "a": ["USDC", 10000000000]}'
+    to = accounts[1].address.lower()
+    call = '{"p": "zen", "f": "token_transfer", "a": ["USDC", "%s", 50000000]}' % to
     print(call)
     tx_hash = transaction(accounts[0], call)
     print(tx_hash)
