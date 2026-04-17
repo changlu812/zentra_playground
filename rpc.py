@@ -14,7 +14,10 @@ import tornado.gen
 import tornado.escape
 
 import web3
-import eth_account
+from eth_account.typed_transactions import TypedTransaction
+from eth_account._utils.legacy_transactions import Transaction as LegacyTransaction, vrs_from
+from eth_account._utils.signing import extract_chain_id
+from eth_account import Account
 import hexbytes
 import rlp
 
@@ -78,7 +81,7 @@ def eth_rlp2list(tx_rlp_bytes):
         v = int.from_bytes(tx_rlp_list[6], 'big')
         r = int.from_bytes(tx_rlp_list[7], 'big')
         s = int.from_bytes(tx_rlp_list[8], 'big')
-        chain_id, chain_naive_v = eth_account._utils.signing.extract_chain_id(v)
+        chain_id, chain_naive_v = extract_chain_id(v)
         v_standard = chain_naive_v - V_OFFSET
         return [nonce, gas_price, gas, to, value, data, chain_id], [v_standard, r, s]
 
@@ -300,8 +303,7 @@ class RPCHandler(tornado.web.RequestHandler):
             print('eth_rlp2list', tx_list, vrs)
             if len(tx_list) == 8:
                 assert tx_list[0] == CHAIN_ID
-                tx = eth_account._utils.typed_transactions.DynamicFeeTransaction.from_bytes(hexbytes.HexBytes(raw_tx_bytes))
-                # tx = eth_account._utils.typed_transactions.TypedTransaction(transaction_type=2, transaction=tx)
+                tx = TypedTransaction.from_bytes(hexbytes.HexBytes(raw_tx_bytes))
                 tx_hash = tx.hash()
                 vrs = tx.vrs()
                 tx_to = web3.Web3.toChecksumAddress(tx.as_dict()['to']).lower()
@@ -309,14 +311,14 @@ class RPCHandler(tornado.web.RequestHandler):
                 tx_nonce = web3.Web3.to_int(tx.as_dict()['nonce'])
             else:
                 assert tx_list[6] == CHAIN_ID
-                tx = eth_account._utils.legacy_transactions.Transaction.from_bytes(raw_tx_bytes)
-                tx_hash = eth_account._utils.signing.hash_of_signed_transaction(tx)
-                vrs = eth_account._utils.legacy_transactions.vrs_from(tx)
+                tx = LegacyTransaction.from_bytes(raw_tx_bytes)
+                tx_hash = tx.hash()
+                vrs = vrs_from(tx)
                 tx_to = web3.Web3.toChecksumAddress(tx.to).lower()
                 tx_data = web3.Web3.to_hex(tx.data)
                 tx_nonce = tx.nonce
 
-            tx_from = eth_account.Account._recover_hash(tx_hash, vrs=vrs).lower()
+            tx_from = Account._recover_hash(tx_hash, vrs=vrs).lower()
             count = space.nonces.get(tx_from, 0)
             print('tx_from', tx_from, 'tx_nonce', tx_nonce)
             assert tx_nonce == count
