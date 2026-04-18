@@ -4,8 +4,8 @@ let rc = React.createElement;
 // const TESTNET_INDEXER_URL = 'https://testnet3.zentra.dev';
 // const TESTNET_INDEXER_URL = 'http://127.0.0.1:8090';
 const TESTNET_INDEXER_URL = '';
-// const CHAIN = 'base';
-const CHAIN = 'cto';
+const CHAIN = 'base';
+// const CHAIN = 'cto';
 const BASE_TOKEN = 'BTC';
 const QUOTE_TOKEN = 'USDC';
 
@@ -206,8 +206,8 @@ class ChartPanel extends React.Component {
               key: option.label,
               onClick: () => this.props.onIntervalChange(option.seconds),
               className: `px-2 py-1 text-xs rounded border ${this.props.intervalSec === option.seconds
-                  ? 'bg-blue-600 border-blue-500 text-white'
-                  : 'bg-gray-800 border-gray-700 text-gray-300 hover:text-white'
+                ? 'bg-blue-600 border-blue-500 text-white'
+                : 'bg-gray-800 border-gray-700 text-gray-300 hover:text-white'
                 }`
             }, option.label)
           )
@@ -444,6 +444,10 @@ class OrderPanel extends React.Component {
     let quote_amount;
 
     if (activeTab === 'Limit') {
+      if (!size || isNaN(parseFloat(size)) || parseFloat(price) <= 0) {
+        alert('Please enter a valid size and price');
+        return;
+      }
       if (sizeUnit === for_token) { // size is in base token
         base_amount = ethers.parseUnits(size, base_decimals);
         quote_amount = ethers.parseUnits((parseFloat(size) * parseFloat(price)).toString(), quote_decimals);
@@ -465,6 +469,10 @@ class OrderPanel extends React.Component {
       };
 
     } else { // Market
+      if (!size || isNaN(parseFloat(size)) || parseFloat(size) <= 0) {
+        alert('Please enter a valid size');
+        return;
+      }
       if (tradeType === 'Buy') {
         // Market buy is specified by quote amount to spend
         quote_amount = -ethers.parseUnits(size, quote_decimals);
@@ -699,6 +707,32 @@ class App extends React.Component {
         const provider = new ethers.BrowserProvider(window.ethereum);
         const signer = await provider.getSigner();
         this.setState({ ethAddress, provider, signer });
+
+        try {
+          const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+          if (chainId !== '0x7a69') {
+            try {
+              await window.ethereum.request({
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: '0x7a69' }],
+              });
+            } catch (switchError) {
+              if (switchError.code === 4902) {
+                await window.ethereum.request({
+                  method: 'wallet_addEthereumChain',
+                  params: [{
+                    chainId: '0x7a69',
+                    chainName: 'Local Testnet',
+                    rpcUrls: ['http://127.0.0.1:8545'],
+                    nativeCurrency: { name: 'Ethereum', symbol: 'ETH', decimals: 18 },
+                  }],
+                });
+              }
+            }
+          }
+        } catch (e) {
+          console.error('Failed to switch chain:', e);
+        }
       } else {
         this.setState({ ethAddress: null, provider: null, signer: null });
       }
@@ -728,7 +762,7 @@ class App extends React.Component {
       try {
         await window.ethereum.request({
           method: 'wallet_switchEthereumChain',
-          params: [{ chainId: '0x14a34' }],
+          params: [{ chainId: '0x7a69' }],
         });
       } catch (switchError) {
         if (switchError.code === 4902) {
@@ -736,15 +770,14 @@ class App extends React.Component {
             await window.ethereum.request({
               method: 'wallet_addEthereumChain',
               params: [{
-                chainId: '0x14a34',
-                chainName: 'Base Sepolia Testnet',
-                rpcUrls: ['https://sepolia.base.org'],
+                chainId: '0x7a69',
+                chainName: 'Local Testnet',
+                rpcUrls: ['http://127.0.0.1:8545'],
                 nativeCurrency: {
-                  name: 'Base Sepolia Testnet',
+                  name: 'Ethereum',
                   symbol: 'ETH',
                   decimals: 18,
                 },
-                blockExplorerUrls: ['https://sepolia.basescan.org'],
               }],
             });
           } catch (addError) {

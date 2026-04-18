@@ -46,3 +46,14 @@ if __name__ == '__main__':
     print(call)
     tx_hash = transaction(setting.accounts[0], call)
     print(tx_hash)
+
+
+    call = '{"p": "zen", "f": "asset_create", "a": ["BTC"]}'
+    print(call)
+    tx_hash = transaction(setting.accounts[0], call)
+    print(tx_hash)
+
+    call = '{"p": "zen", "f": "token_create", "a": ["BTC", "Mock BTC", 18]}'
+    print(call)
+    tx_hash = transaction(setting.accounts[0], call)
+    print(tx_hash)

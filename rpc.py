@@ -177,44 +177,49 @@ class RPCHandler(tornado.web.RequestHandler):
             # receipt_json = receipts_tree[transaction_hash.replace('0x', '').encode('utf8')]
             # transaction_json = conn.get(('transaction-%s' % transaction_hash.replace('0x', '')).encode('utf8'))
             # receipt = json.loads(transaction_json)
+            print('space.transactions', space.transactions)
             receipt = space.transactions.get(transaction_hash.replace('0x', '').lower())
-            print(receipt)
-            block_number = receipt['blockNumber']
-            block_hash = '0x'+receipt['block_hash']
-            tx_from = receipt['from']
+            print('receipt', receipt)
+            if receipt is None:
+                resp = {'jsonrpc':'2.0', 'result': None, 'id': rpc_id}
 
-            result = {
-                'transactionHash': transaction_hash,
-                'transactionIndex': hex(0),
-                'blockHash': block_hash,
-                'blockNumber': hex(block_number),
-                'from': tx_from,
-                'cumulativeGasUsed': 0,
-                'gasUsed': 0,
-                'contractAddress': None,
-                'status': hex(1),
-                'logs': [
-                    {
-                        "address":"0x"+'0'*40,
-                        "blockHash":"0x0a79eca9f5ca58a1d5d5030a0fabfdd8e815b8b77a9f223f74d59aa39596e1c7",
-                        "blockNumber":"0x11e5883",
-                        "transactionHash": "0x7114b4da1a6ed391d5d781447ed443733dcf2b508c515b81c17379dea8a3c9af",
-                        "transactionIndex": "0x1",
-                        "data":"0x00000000000000000000000000000000000000000000000011b6b79503fb875d",
-                        "logIndex": "0x1",
-                        "topics": [
-                            "0x"+'0'*64
-                        ],
-                        "removed":False
-                    }],
-                'logsBloom': "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
-            }
-            if 'to' in receipt:
-                result['to'] = receipt['to']
-            if 'contractAddress' in receipt:
-                result['contractAddress'] = receipt['contractAddress']
+            else:
+                block_number = receipt['blockNumber']
+                block_hash = '0x'+receipt['block_hash']
+                tx_from = receipt['from']
 
-            resp = {'jsonrpc':'2.0', 'result': result, 'id': rpc_id}
+                result = {
+                    'transactionHash': transaction_hash,
+                    'transactionIndex': hex(0),
+                    'blockHash': block_hash,
+                    'blockNumber': hex(block_number),
+                    'from': tx_from,
+                    'cumulativeGasUsed': 0,
+                    'gasUsed': 0,
+                    'contractAddress': None,
+                    'status': hex(1),
+                    'logs': [
+                        {
+                            "address":"0x"+'0'*40,
+                            "blockHash":"0x0a79eca9f5ca58a1d5d5030a0fabfdd8e815b8b77a9f223f74d59aa39596e1c7",
+                            "blockNumber":"0x11e5883",
+                            "transactionHash": "0x7114b4da1a6ed391d5d781447ed443733dcf2b508c515b81c17379dea8a3c9af",
+                            "transactionIndex": "0x1",
+                            "data":"0x00000000000000000000000000000000000000000000000011b6b79503fb875d",
+                            "logIndex": "0x1",
+                            "topics": [
+                                "0x"+'0'*64
+                            ],
+                            "removed":False
+                        }],
+                    'logsBloom': "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+                }
+                if 'to' in receipt:
+                    result['to'] = receipt['to']
+                if 'contractAddress' in receipt:
+                    result['contractAddress'] = receipt['contractAddress']
+
+                resp = {'jsonrpc':'2.0', 'result': result, 'id': rpc_id}
 
         elif req.get('method') == 'eth_gasPrice':
             resp = {'jsonrpc':'2.0', 'result': '0x0', 'id': rpc_id}
@@ -234,11 +239,22 @@ class RPCHandler(tornado.web.RequestHandler):
 
         elif req.get('method') == 'eth_getBlockByHash':
             block_hash = req['params'][0].replace('0x', '')
-            # k = 'blockhash-%s' % block_hash
-            # block_json = conn.get(k.encode('utf8'))
-            # print(block_json)
-            # block = json.loads(block_json)
-            resp = {'jsonrpc':'2.0', 'result': block, 'id': rpc_id}
+            block_number = None
+            for bn, bh in space.blocks.items():
+                if bh == block_hash:
+                    block_number = bn
+                    break
+            
+            if block_number is None:
+                result = None
+            else:
+                result = {
+                    'number': hex(block_number),
+                    'hash': '0x' + block_hash,
+                    'timestamp': '0x0',
+                    'gasLimit': '0x1c9c380'
+                }
+            resp = {'jsonrpc':'2.0', 'result': result, 'id': rpc_id}
 
         elif req.get('method') == 'eth_getTransactionByHash':
             transaction_hash = req['params'][0].replace('0x', '').lower()
@@ -318,11 +334,26 @@ class RPCHandler(tornado.web.RequestHandler):
                 tx_data = web3.Web3.to_hex(tx.data)
                 tx_nonce = tx.nonce
 
-            tx_from = Account._recover_hash(tx_hash, vrs=vrs).lower()
+            tx_from = Account.recover_transaction(raw_tx).lower()
             count = space.nonces.get(tx_from, 0)
-            print('tx_from', tx_from, 'tx_nonce', tx_nonce)
+            print('tx_from', tx_from, 'tx_nonce', tx_nonce, 'count', count)
             assert tx_nonce == count
+
+            tx_hash_hex = tx_hash.hex().replace('0x', '')
+            space.blocks[space.latest_block_number] = tx_hash_hex
+            space.transactions[tx_hash_hex] = {
+                'blockNumber': space.latest_block_number,
+                'block_hash': tx_hash_hex,
+                'from': tx_from,
+                'input': '0x' + tx_data.replace('0x', ''),
+                'value': tx_list[3] if len(tx_list) > 3 else 0,
+                'gas': tx_list[4] if len(tx_list) > 4 else 21000,
+                'nonce': tx_nonce,
+                'tx': tx_list
+            }
             space.nonces[tx_from] = count + 1
+            space.latest_block_number += 1
+
             print('raw tx', tx_hash.hex())
             print('tx_data', tx_data)
             try:
