@@ -1,11 +1,40 @@
+import random
+import string
 
 latest_block_number = 0
 states = [{}]
-blocks = {}
+blocks = {}  # block_hash -> [tx_hashes]
+block_hashes = {}  # block_number -> block_hash
 transactions = {}
+events = []  # store all events: [{block, event, args}, ...]
 nonces = {}
 
 sender = None
+
+block_mode = 0  # 0: manual, 1: auto after tx, >=2: auto with interval (seconds)
+block_timer = None
+
+
+def _gen_block_hash():
+    return ''.join(random.choices(string.hexdigits.lower(), k=64))
+
+def _init_block_mode():
+    global block_mode, block_timer
+    import setting
+    import tornado.ioloop
+    block_mode = setting.BLOCK_MODE
+    if block_timer is not None:
+        block_timer.stop()
+        block_timer = None
+    if block_mode >= 2:
+        interval_ms = block_mode * 1000
+        block_timer = tornado.ioloop.PeriodicCallback(nextblock, interval_ms)
+        block_timer.start()
+    # 初始化第一个 block
+    if latest_block_number == 0:
+        block_hash = _gen_block_hash()
+        blocks[block_hash] = []
+        block_hashes[latest_block_number] = block_hash
 
 def put(_owner, _asset, _var, _value, _key = None):
     global sender
@@ -45,8 +74,8 @@ def get(_asset, _var, _default = None, _key = None):
     return value, None
 
 def event(_event, _args):
-    global states
-    # states[-1]['event'] = _event, _args
+    global states, latest_block_number
+    events.append({'block': latest_block_number, 'event': _event, 'args': _args})
 
 def handle_lookup(_addr):
     return _addr
@@ -54,6 +83,13 @@ def handle_lookup(_addr):
 def nextblock():
     global states
     global latest_block_number
+    global blocks, block_hashes
+    
+    # 为新 block 生成随机 hash
+    block_hash = _gen_block_hash()
+    blocks[block_hash] = []
+    block_hashes[latest_block_number] = block_hash
+    
     latest_block_number += 1
     states.append({})
 

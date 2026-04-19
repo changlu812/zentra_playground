@@ -24,7 +24,6 @@ class NamedFunction:
         if space.sender is None:
             raise Exception('sender is not set')
         r = self.f({'sender': space.sender}, {'p': 'zen', 'a': a, 'f': self.name})
-        space.nextblock()
         return r
 
     def __str__(self):

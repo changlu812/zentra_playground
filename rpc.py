@@ -149,15 +149,20 @@ class RPCHandler(tornado.web.RequestHandler):
             else:
                 block_number = int(block_number, 16)
 
-            block_hash = '0x0000000000000000000000000000000000000000000000000000000000000000'
-            if block_number - 1 in space.blocks:
-                block_hash = '0x' + space.blocks[block_number - 1]
+            # 获取 block hash
+            block_hash = space.block_hashes.get(block_number)
+            if not block_hash:
+                # 如果还没初始化，返回 null
+                result = None
+                resp = {'jsonrpc':'2.0', 'result': result, 'id':rpc_id}
+                self.write(tornado.escape.json_encode(resp))
+                return
             print('eth_getBlockByNumber', block_number, block_hash)
 
             result = {
                 'number': hex(block_number),
-                'hash': block_hash,
-                'timestamp': '0',
+                'hash': '0x' + block_hash,
+                'timestamp': '0x0',
                 'gasLimit': '0x1c9c380'
             }
 
@@ -240,11 +245,11 @@ class RPCHandler(tornado.web.RequestHandler):
         elif req.get('method') == 'eth_getBlockByHash':
             block_hash = req['params'][0].replace('0x', '')
             block_number = None
-            for bn, bh in space.blocks.items():
+            for bn, bh in space.block_hashes.items():
                 if bh == block_hash:
                     block_number = bn
                     break
-            
+
             if block_number is None:
                 result = None
             else:
@@ -292,10 +297,22 @@ class RPCHandler(tornado.web.RequestHandler):
             print('tx_from', tx_from)
             tx_hash = hashlib.sha256((tx_from + str(tx_nonce)).encode('utf8')).digest()
             print('txhash', tx_hash.hex())
-            space.blocks[space.latest_block_number] = tx_hash.hex().replace('0x', '')
+            
+            # Record transaction to current block
+            block_hash = space.block_hashes.get(space.latest_block_number)
+            if not block_hash:
+                import random
+                import string
+                block_hash = ''.join(random.choices(string.hexdigits.lower(), k=64))
+                space.block_hashes[space.latest_block_number] = block_hash
+            
+            if block_hash not in space.blocks:
+                space.blocks[block_hash] = []
+            space.blocks[block_hash].append(tx_hash.hex().replace('0x', ''))
+            
             space.transactions[tx_hash.hex().replace('0x', '')] = {
                 'blockNumber': space.latest_block_number,
-                'block_hash': tx_hash.hex().replace('0x', ''),
+                'block_hash': block_hash,
                 'from': tx_from,
                 'input': '0x'+data,
                 'value': value,
@@ -303,10 +320,9 @@ class RPCHandler(tornado.web.RequestHandler):
                 'nonce': tx_nonce,
                 'tx': tx_list
             }
-            # transaction_queue.append((tx_hash, tx_from, tx_list))
-            # yield tornado.gen.sleep(5)
+            
             space.nonces[tx_from] = count + 1
-            space.latest_block_number += 1
+            # No automatic nextblock - user must call it manually or via timer
             resp = {'jsonrpc':'2.0', 'result': '%s' % tx_hash.hex(), 'id': rpc_id}
 
         elif req.get('method') == 'eth_sendRawTransaction':
@@ -340,10 +356,20 @@ class RPCHandler(tornado.web.RequestHandler):
             assert tx_nonce == count
 
             tx_hash_hex = tx_hash.hex().replace('0x', '')
-            space.blocks[space.latest_block_number] = tx_hash_hex
+            block_hash = space.block_hashes.get(space.latest_block_number)
+            if not block_hash:
+                import random
+                import string
+                block_hash = ''.join(random.choices(string.hexdigits.lower(), k=64))
+                space.block_hashes[space.latest_block_number] = block_hash
+            
+            if block_hash not in space.blocks:
+                space.blocks[block_hash] = []
+            space.blocks[block_hash].append(tx_hash_hex)
+
             space.transactions[tx_hash_hex] = {
                 'blockNumber': space.latest_block_number,
-                'block_hash': tx_hash_hex,
+                'block_hash': block_hash,
                 'from': tx_from,
                 'input': '0x' + tx_data.replace('0x', ''),
                 'value': tx_list[3] if len(tx_list) > 3 else 0,
@@ -352,7 +378,7 @@ class RPCHandler(tornado.web.RequestHandler):
                 'tx': tx_list
             }
             space.nonces[tx_from] = count + 1
-            space.latest_block_number += 1
+            # No automatic nextblock - user must call it manually or via timer
 
             print('raw tx', tx_hash.hex())
             print('tx_data', tx_data)
