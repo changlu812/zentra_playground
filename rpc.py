@@ -135,6 +135,12 @@ class RPCHandler(tornado.web.RequestHandler):
             self.write(tornado.escape.json_encode(resp))
             return
 
+        if req.get('method') == 'zentra_nextBlock':
+            space.nextblock()
+            resp = {'jsonrpc': '2.0', 'result': hex(space.latest_block_number), 'id': rpc_id}
+            self.write(tornado.escape.json_encode(resp))
+            return
+
         if req.get('method') == 'eth_chainId':
             resp = {'jsonrpc':'2.0', 'result': hex(CHAIN_ID), 'id':rpc_id}
 
@@ -388,8 +394,11 @@ class RPCHandler(tornado.web.RequestHandler):
                 print('parsed_json', data_json)
                 func.set_sender(tx_from)
                 func.namespace[data_json['f']](*data_json['a'])
+                print('=== function executed, events now:', len(space.events), '===')
             except Exception as e:
-                print('failed to parse tx_data as json', e)
+                import traceback
+                traceback.print_exc()
+                print('failed to execute function:', e)
             # transaction_queue.append((tx_hash, tx_from, tx_list))
             resp = {'jsonrpc':'2.0', 'result': '0x%s' % tx_hash.hex(), 'id': rpc_id}
 

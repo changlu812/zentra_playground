@@ -1,9 +1,10 @@
 import { ethers } from "https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.2/ethers.min.js";
 
 let rc = React.createElement;
+const LightweightCharts = window.LightweightCharts;
 // const TESTNET_INDEXER_URL = 'https://testnet3.zentra.dev';
 // const TESTNET_INDEXER_URL = 'http://127.0.0.1:8090';
-const TESTNET_INDEXER_URL = '';
+const TESTNET_INDEXER_URL = 'http://127.0.0.1:8545';
 const CHAIN = 'base';
 // const CHAIN = 'cto';
 const BASE_TOKEN = 'BTC';
@@ -32,7 +33,7 @@ class Header extends React.Component {
     const { ethAddress, walletLoading } = this.props.walletState;
     return rc('header', { className: 'header p-4 flex justify-between items-center bg-gray-800 text-white' },
       rc('div', { className: 'logo flex items-center' },
-        rc('img', { src: 'logo.png', alt: 'Logo', className: 'h-8 w-8 mr-2' }),
+        rc('img', { src: 'logo.svg', alt: 'Logo', className: 'h-8 w-8 mr-2' }),
         rc('span', { className: 'text-xl font-bold' }, 'OrderBook')
       ),
       rc('nav', { className: 'menu' },
@@ -56,164 +57,107 @@ class Header extends React.Component {
 class ChartPanel extends React.Component {
   constructor(props) {
     super(props);
+    this.state = { history: [] };
     this.chart = null;
     this.candleSeries = null;
-    this.chartInterval = null;
-    this.lastTradeTimestamp = 0;
-    this.chartContainerRef = React.createRef();
-    this.candles = [];
-  }
-
-  setHistoryData = (history) => {
-    if (!this.candleSeries || !history) return;
-    this.candles = history;
-    this.candleSeries.setData(this.candles);
-    this.chart.timeScale().fitContent();
+    this.chartRef = React.createRef();
   }
 
   componentDidMount() {
-    const chartDiv = this.chartContainerRef.current;
-    const chartOptions = {
-      width: chartDiv.offsetWidth,
-      height: 400,
-      layout: {
-        background: { color: 'transparent' },
-        textColor: 'rgba(255, 255, 255, 0.9)',
-      },
-      grid: {
-        vertLines: { color: '#2d3748' },
-        horzLines: { color: '#2d3748' },
-      },
-      crosshair: {
-        mode: LightweightCharts.CrosshairMode.Normal,
-      },
-      priceScale: {
-        borderColor: '#4a5568',
-      },
+    this.initChart();
+    this.loadHistory();
+  }
+
+initChart() {
+    if (!this.chartRef.current) return;
+    this.chart = LightweightCharts.createChart(this.chartRef.current, {
+      width: this.chartRef.current.offsetWidth || 600,
+      height: 300,
+      layout: { background: { color: 'transparent' }, textColor: '#d1d4dc' },
+      grid: { vertLines: { color: '#2d3748' }, horzLines: { color: '#2d3748' } },
       timeScale: {
-        borderColor: '#4a5568',
-        timeVisible: true,
-        secondsVisible: true,
+        tickMarkFormatter: (time) => {
+          const block = Math.max(0, Math.round((time - 1704067200) / 1000));
+          return `b${block}`;
+        },
       },
-    };
-
-    this.chart = LightweightCharts.createChart(chartDiv, chartOptions);
+    });
     this.candleSeries = this.chart.addCandlestickSeries({
-      upColor: '#48bb78',
-      downColor: '#f56565',
-      borderDownColor: '#f56565',
-      borderUpColor: '#48bb78',
-      wickDownColor: '#f56565',
-      wickUpColor: '#48bb78',
+      upColor: '#22c55e', downColor: '#ef4444', borderDownColor: '#ef4444', borderUpColor: '#22c55e',
+      wickDownColor: '#ef4444', wickUpColor: '#22c55e',
     });
-
-    if (this.props.history) {
-      this.setHistoryData(this.props.history);
-    }
-    window.addEventListener('resize', this.handleResize);
   }
 
-  componentDidUpdate(prevProps) {
-    if (this.props.history !== prevProps.history && this.props.history) {
-      this.setHistoryData(this.props.history);
-    }
-    if (this.props.streamTrades !== prevProps.streamTrades && this.props.streamTrades) {
-      this.applyTradesToCandles(this.props.streamTrades);
-    }
-  }
-
-  componentWillUnmount() {
-    clearInterval(this.chartInterval);
-    window.removeEventListener('resize', this.handleResize);
-  }
-
-  aggregateTradesToCandles = (trades) => {
-    if (trades.length === 0) return [];
-
-    const candleDuration = this.props.intervalSec || 60; // seconds
-    const candles = new Map();
-
-    // Ensure trades are sorted by time before processing
-    const sortedTrades = trades.sort((a, b) => a.timestamp - b.timestamp);
-
-    sortedTrades.forEach(trade => {
-      const candleTimestamp = Math.floor(trade.timestamp / candleDuration) * candleDuration;
-
-      if (!candles.has(candleTimestamp)) {
-        candles.set(candleTimestamp, {
-          time: candleTimestamp,
-          open: trade.price,
-          high: trade.price,
-          low: trade.price,
-          close: trade.price,
-        });
-      } else {
-        const candle = candles.get(candleTimestamp);
-        candle.high = Math.max(candle.high, trade.price);
-        candle.low = Math.min(candle.low, trade.price);
-        candle.close = trade.price; // last trade in interval sets the close
+  convertToCandles = (trades) => {
+    const BASE_TIME = 1704067200; // base timestamp
+    const candleMap = {};
+    trades.forEach(trade => {
+      const block = trade.block;
+      if (!candleMap[block]) {
+        candleMap[block] = { 
+          time: BASE_TIME + block * 1000,  // 1000ms = display tick
+          open: 65000, high: 65000, low: 65000, close: 65000, 
+          block: block,
+          volume: 0, count: 0 
+        };
       }
+      const amount = Math.abs(parseFloat(trade.amount)) || 1000000;
+      const price = 65000;
+      
+      const c = candleMap[block];
+      c.close = price;
+      c.high = Math.max(c.high, price);
+      c.low = Math.min(c.low, price);
+      if (c.count === 0) c.open = price;
+      c.volume += amount;
+      c.count++;
     });
-
-    return Array.from(candles.values()).sort((a, b) => a.time - b.time);
+    return Object.values(candleMap).filter(c => c.count > 0).sort((a, b) => a.time - b.time);
   }
 
-  handleResize = () => {
-    const chartDiv = this.chartContainerRef.current;
-    if (chartDiv && this.chart) {
-      let chartWidth = chartDiv.offsetWidth;
-      this.chart.resize(chartWidth, 400);
+  loadHistory = async () => {
+    try {
+      const response = await fetch(`${TESTNET_INDEXER_URL}/api/history?base=BTC&quote=USDC`);
+      const data = await response.json();
+      const trades = data.trades || [];
+      
+      // Convert trades to candles
+      const candles = this.convertToCandles(trades);
+      if (this.candleSeries && candles.length > 0) {
+        this.candleSeries.setData(candles);
+      }
+      this.setState({ history: trades });
+    } catch (error) {
+      console.error('Failed to load history:', error);
     }
   }
 
-  applyTradesToCandles = (trades) => {
-    const newCandles = this.aggregateTradesToCandles(trades);
-    if (!newCandles.length) return;
-    const candleMap = new Map(this.candles.map(candle => [candle.time, candle]));
-    newCandles.forEach((candle) => {
-      if (candleMap.has(candle.time)) {
-        const existing = candleMap.get(candle.time);
-        candleMap.set(candle.time, {
-          time: candle.time,
-          open: existing.open,
-          high: Math.max(existing.high, candle.high),
-          low: Math.min(existing.low, candle.low),
-          close: candle.close
-        });
-      } else {
-        candleMap.set(candle.time, candle);
+  convertToCandles = (trades) => {
+    const BLOCK_TIME = 2; // seconds per block
+    const candleMap = {};
+    trades.forEach(trade => {
+      const block = trade.block;
+      if (!candleMap[block]) {
+        candleMap[block] = { time: block * BLOCK_TIME, open: 0, high: 0, low: 0, close: 0, volume: 0, count: 0 };
       }
+      const price = parseFloat(trade.price) || 0;
+      const amount = parseFloat(trade.amount) || 0;
+      const c = candleMap[block];
+      c.close = price;
+      c.high = c.count === 0 ? price : Math.max(c.high, price);
+      c.low = c.count === 0 ? price : Math.min(c.low, price);
+      c.open = c.count === 0 ? price : c.open;
+      c.volume += amount;
+      c.count++;
     });
-    this.candles = Array.from(candleMap.values()).sort((a, b) => a.time - b.time);
-    this.candleSeries.setData(this.candles);
+    return Object.values(candleMap).filter(c => c.count > 0);
   }
 
   render() {
-    const intervalOptions = [
-      { label: '1m', seconds: 60 },
-      { label: '5m', seconds: 300 },
-      { label: '1H', seconds: 3600 },
-      { label: '24H', seconds: 86400 },
-      { label: '1W', seconds: 604800 },
-      { label: '1M', seconds: 2592000 },
-    ];
+    const { history } = this.state;
     return rc('div', { className: 'chart-panel bg-gray-900 p-4 rounded-lg' },
-      rc('div', { className: 'flex flex-wrap items-center justify-between gap-2 mb-2' },
-        rc('h2', { className: 'text-lg font-bold text-white' }, 'BTC/USD Chart'),
-        rc('div', { className: 'flex flex-wrap gap-2' },
-          intervalOptions.map((option) =>
-            rc('button', {
-              key: option.label,
-              onClick: () => this.props.onIntervalChange(option.seconds),
-              className: `px-2 py-1 text-xs rounded border ${this.props.intervalSec === option.seconds
-                ? 'bg-blue-600 border-blue-500 text-white'
-                : 'bg-gray-800 border-gray-700 text-gray-300 hover:text-white'
-                }`
-            }, option.label)
-          )
-        )
-      ),
-      rc('div', { id: 'lightweight-charts', style: { minHeight: '400px' }, ref: this.chartContainerRef })
+      rc('h2', { className: 'text-lg font-bold text-white mb-2' }, `Market Chart (${history.length} trades)`),
+      rc('div', { ref: this.chartRef, className: 'w-full' })
     );
   }
 }
@@ -599,26 +543,58 @@ class InfoPanel extends React.Component {
 }
 
 class AssetsPanel extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      BTC: null,
+      USDC: null
+    };
+  }
+
+  componentDidMount() {
+    this.fetchAssets();
+  }
+
+  componentDidUpdate(prevProps) {
+    if (this.props.address !== prevProps.address && this.props.address) {
+      this.fetchAssets();
+    }
+  }
+
+  fetchAssets = async () => {
+    if (!this.props.address) return;
+    const tokens = { BTC: 18, USDC: 6 };
+    const newState = {};
+    const addr = this.props.address.toLowerCase();
+    for (const [tick, dec] of Object.entries(tokens)) {
+      try {
+        const prefix = `${tick}-balance:${addr}`;
+        const response = await fetch(`${TESTNET_INDEXER_URL}/api/get_latest_state?prefix=${prefix}`);
+        const data = await response.json();
+        const val = data.result;
+        newState[tick] = val && val !== '0' ? ethers.formatUnits(toBigInt(val), dec) : '0';
+      } catch (e) {
+        newState[tick] = '0';
+      }
+    }
+    this.setState(newState);
+  }
+
   render() {
     const assets = [
-      { name: 'Bitcoin', symbol: 'BTC', amount: '1.2345', value: '84,000.00 USD' },
-      { name: 'Ethereum', symbol: 'ETH', amount: '10.5', value: '35,000.00 USD' },
-      { name: 'USD Coin', symbol: 'USDC', amount: '5,000.00', value: '5,000.00 USD' },
+      { tick: 'BTC', amount: this.state.BTC || '0' },
+      { tick: 'USDC', amount: this.state.USDC || '0' }
     ];
 
     return rc('div', { className: 'assets-panel bg-gray-900 p-4 rounded-lg text-white h-full' },
       rc('h2', { className: 'text-lg font-bold mb-4' }, 'My Assets'),
       rc('div', { className: 'space-y-4' },
         assets.map(asset =>
-          rc('div', { key: asset.symbol, className: 'flex justify-between items-center' },
+          rc('div', { key: asset.tick, className: 'flex justify-between items-center' },
             rc('div', null,
-              rc('div', { className: 'font-bold' }, asset.name),
-              rc('div', { className: 'text-sm text-gray-400' }, asset.symbol)
+              rc('div', { className: 'font-bold' }, asset.tick)
             ),
-            rc('div', { className: 'text-right' },
-              rc('div', { className: 'font-bold' }, asset.amount),
-              rc('div', { className: 'text-sm text-gray-400' }, asset.value)
-            )
+            rc('div', { className: 'text-right font-mono' }, asset.amount)
           )
         )
       )
@@ -662,28 +638,23 @@ class App extends React.Component {
       provider: null,
       signer: null,
       walletLoading: true,
-      history: null,
       orderbook: null,
       lastBlock: null,
       trades: [],
       streamTrades: null,
-      intervalSec: 60,
     };
     this.ws = null;
     this.reconnectTimeout = null;
   }
 
-  loadInitialMarketData = async (intervalSec = this.state.intervalSec) => {
+  loadInitialMarketData = async () => {
     try {
-      const response = await fetch(`${TESTNET_INDEXER_URL}/api/history?base=${BASE_TOKEN}&quote=${QUOTE_TOKEN}&interval=${intervalSec}`);
-      const data_json = await response.text();
-      const data = parseJsonWithBigInt(data_json);
+      const response = await fetch(`${TESTNET_INDEXER_URL}/api/orderbook?base=${BASE_TOKEN}&quote=${QUOTE_TOKEN}`);
+      const data = await response.json();
       this.setState(
         {
-          history: data.history || [],
-          orderbook: data.orderbook || null,
-          lastBlock: data.last_block || null,
-          intervalSec: data.interval || intervalSec
+          orderbook: { buys: data.buys, sells: data.sells },
+          lastBlock: null
         },
         () => this.startStream()
       );
@@ -821,11 +792,8 @@ class App extends React.Component {
     });
   }
 
-  handleIntervalChange = (intervalSec) => {
-    if (intervalSec === this.state.intervalSec) return;
-    this.setState({ intervalSec, streamTrades: null }, () => {
-      this.loadInitialMarketData(intervalSec);
-    });
+  handleIntervalChange = () => {
+    this.loadInitialMarketData();
   }
 
   startStream = () => {
@@ -937,17 +905,14 @@ class App extends React.Component {
 
     const mainContent = rc('div', { className: 'space-y-4' },
       rc(ChartPanel, {
-        history: this.state.history,
         streamTrades: this.state.streamTrades,
-        intervalSec: this.state.intervalSec,
-        onIntervalChange: this.handleIntervalChange
       }),
       rc(InfoPanel, null)
     );
 
     const orderPanelWithSigner = rc(OrderPanel, { signer: this.state.signer });
     const marketPanel = rc(MarketPanel, { orderbook: this.state.orderbook, trades: this.state.trades });
-    const assetsPanel = rc(AssetsPanel, null);
+    const assetsPanel = rc(AssetsPanel, { address: this.state.ethAddress });
     const toolPanel = rc(ToolPanel, null);
 
     if (this.state.screenWidth < 960) { // Mobile layout
@@ -974,12 +939,9 @@ class App extends React.Component {
           rc('div', { className: 'flex-grow space-y-4' },
             rc(InfoPanel, null),
             rc(ChartPanel, {
-              history: this.state.history,
               streamTrades: this.state.streamTrades,
-              intervalSec: this.state.intervalSec,
-              onIntervalChange: this.handleIntervalChange
             }),
-            rc(AssetsPanel, null)
+            rc(AssetsPanel, { address: this.state.ethAddress })
           ),
           rc('div', { className: 'w-80 space-y-4' },
             marketPanel,

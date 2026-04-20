@@ -29,19 +29,28 @@ GLOBAL_FUNCTIONS = func.namespace
 
 class GetLatestStateAPIHandler(tornado.web.RequestHandler):
     def get(self):
-        prefix = self.get_argument('prefix')
-        print(prefix)
-        prefix = prefix.split('-')
-        asset = prefix[1]
-        if ':' in prefix[2]:
-            var, key = prefix[2].split(':')
-            value, owner = space.get(asset, var, None, key)
+        from urllib.parse import unquote
+        prefix = unquote(self.get_argument('prefix'))
+        print('get_latest_state:', prefix)
+        
+        # format: asset-var:key (e.g., BTC-balance:0xabc...)
+        if '-' not in prefix:
+            self.finish({'result': None})
+            return
+        
+        idx = prefix.index('-')
+        asset = prefix[:idx]
+        rest = prefix[idx+1:]
+        
+        if ':' in rest:
+            var, key = rest.split(':', 1)
         else:
-            var = prefix[2]
+            var = rest
             key = None
-            value, owner = space.get(asset, var, None)
-        print(value)
-        self.finish({'result': value})
+        
+        value, owner = space.get(asset, var, None, key)
+        print('value:', value, 'owner:', owner)
+        self.finish({'result': value, 'owner': owner})
 
 class QueryRecentStateAPIHandler(tornado.web.RequestHandler):
     def get(self):

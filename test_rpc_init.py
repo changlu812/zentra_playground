@@ -2,6 +2,7 @@
 import sys
 import hashlib
 import json
+import requests
 
 import web3
 
@@ -32,8 +33,11 @@ def transaction(account, call):
 
     signed = w3.eth.account.sign_transaction(transaction, account.key)
     tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
-    # print(tx_hash.hex())
     return tx_hash.hex()
+
+def next_block():
+    resp = requests.post(PROVIDER_HOST, json={'jsonrpc': '2.0', 'method': 'zentra_nextBlock', 'id': 1})
+    return resp.json()
 
 
 if __name__ == '__main__':
@@ -57,3 +61,8 @@ if __name__ == '__main__':
     print(call)
     tx_hash = transaction(setting.accounts[0], call)
     print(tx_hash)
+
+    # 手动推进 block
+    print('=== 调用 next block ===')
+    result = next_block()
+    print('next block result:', result)
