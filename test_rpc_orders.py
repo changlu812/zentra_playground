@@ -12,46 +12,88 @@ from test_rpc_init import transaction, next_block
 if __name__ == '__main__':
     accounts = setting.accounts
 
-    # Block 1: 混合 limit 和 market orders
-    print('=== Block 1: 创建 5 个 Limit + 2 个 Market Orders ===')
-    for i in range(5):
-        price = random.randint(65000, 68000)
-        amount = random.randint(100, 500) * 10**18
-        call = f'{{"p": "zen", "f": "trade_limit_order", "a": ["BTC", -{amount}, "USDC", {price * amount}]}}'
-        print(f'Limit Order {i+1}: price={price}, amount={amount}')
-        tx_hash = transaction(accounts[random.randint(0, 2)], call)
-        print(f'  tx: {tx_hash}')
-
-    for i in range(2):
-        amount = random.randint(10, 50) * 10**18
-        call = f'{{"p": "zen", "f": "trade_market_order", "a": ["BTC", -{amount}, "USDC", null]}}'
-        print(f'Market Order {i+1}: amount={amount}')
-        tx_hash = transaction(accounts[random.randint(0, 2)], call)
+    # Block 1: 先创建一些挂单（不成交）
+    print('=== Block 1: 创建卖单挂单 ===')
+    for i in range(3):
+        price = 660 + i * 10
+        amount = 1 * 10**18
+        quote = price * 10**6
+        call = f'{{"p": "zen", "f": "trade_limit_order", "a": ["BTC", -{amount}, "USDC", {quote}]}}'
+        print(f'Sell Limit {i+1}: price={price}, amount={amount // 10**18}')
+        tx_hash = transaction(accounts[0], call)
         print(f'  tx: {tx_hash}')
 
     print('\n=== next block ===')
-    result = next_block()
-    print('result:', result)
+    next_block()
 
-    # Block 2: 更多混合订单
-    print('\n=== Block 2: 创建 3 个 Limit + 3 个 Market Orders ===')
+    print('\n=== Block 2: 创建买单挂单（不成交） ===')
     for i in range(3):
-        price = random.randint(62000, 64000)
-        amount = random.randint(100, 500) * 10**18
-        call = f'{{"p": "zen", "f": "trade_limit_order", "a": ["BTC", {amount}, "USDC", -{price * amount}]}}'
-        print(f'Limit Order {i+1}: price={price}, amount={amount}')
-        tx_hash = transaction(accounts[random.randint(0, 2)], call)
-        print(f'  tx: {tx_hash}')
-
-    for i in range(3):
-        amount = random.randint(10, 50) * 10**6
-        call = f'{{"p": "zen", "f": "trade_market_order", "a": ["BTC", null, "USDC", -{amount}]}}'
-        print(f'Market Order {i+1}: amount={amount}')
-        tx_hash = transaction(accounts[random.randint(0, 2)], call)
+        price = 640 - i * 10
+        amount = 1 * 10**18
+        quote = price * 10**6
+        call = f'{{"p": "zen", "f": "trade_limit_order", "a": ["BTC", {amount}, "USDC", -{quote}]}}'
+        print(f'Buy Limit {i+1}: price={price}, amount={amount // 10**18}')
+        tx_hash = transaction(accounts[1], call)
         print(f'  tx: {tx_hash}')
 
     print('\n=== next block ===')
-    result = next_block()
-    print('result:', result)
+    next_block()
+
+    # Block 3: 卖单，价格低于买方最高价，会成交
+    print('\n=== Block 3: 卖出（价格64500，会与买方成交）===')
+    price = 645
+    amount = 1 * 10**18
+    quote = price * 10**6
+    call = f'{{"p": "zen", "f": "trade_limit_order", "a": ["BTC", -{amount}, "USDC", {quote}]}}'
+    print(f'Sell Limit: price={price}, amount={amount // 10**18}')
+    tx_hash = transaction(accounts[2], call)
+    print(f'  tx: {tx_hash}')
+
+    price2 = 643
+    amount2 = 1 * 10**18
+    quote2 = price2 * 10**6
+    call2 = f'{{"p": "zen", "f": "trade_limit_order", "a": ["BTC", -{amount2}, "USDC", {quote2}]}}'
+    print(f'Sell Limit: price={price2}, amount={amount2 // 10**18}')
+    tx_hash2 = transaction(accounts[0], call2)
+    print(f'  tx: {tx_hash2}')
+
+    print('\n=== next block ===')
+    next_block()
+
+    # Block 4: 买入，价格高于卖方最低价，会成交
+    print('\n=== Block 4: 买入（价格66500，会与卖方成交）===')
+    price = 665
+    amount = 1 * 10**18
+    quote = price * 10**6
+    call = f'{{"p": "zen", "f": "trade_limit_order", "a": ["BTC", {amount}, "USDC", -{quote}]}}'
+    print(f'Buy Limit: price={price}, amount={amount // 10**18}')
+    tx_hash = transaction(accounts[1], call)
+    print(f'  tx: {tx_hash}')
+
+    print('\n=== next block ===')
+    next_block()
+
+    # Block 5: Market order卖出，会与买方成交
+    print('\n=== Block 5: Market卖出（与买方成交）===')
+    amount = 1 * 10**18
+    call = f'{{"p": "zen", "f": "trade_market_order", "a": ["BTC", -{amount}, "USDC", null]}}'
+    print(f'Market Sell: amount={amount // 10**18}')
+    tx_hash = transaction(accounts[2], call)
+    print(f'  tx: {tx_hash}')
+
+    print('\n=== next block ===')
+    next_block()
+
+    # Block 6: Market order买入，会与卖方成交
+    print('\n=== Block 6: Market买入（与卖方成交）===')
+    amount = 1 * 10**18
+    call = f'{{"p": "zen", "f": "trade_market_order", "a": ["BTC", null, "USDC", -{amount}]}}'
+    print(f'Market Buy: amount={amount // 10**18}')
+    tx_hash = transaction(accounts[0], call)
+    print(f'  tx: {tx_hash}')
+
+    print('\n=== next block ===')
+    next_block()
 
     print('\n=== 完成 ===')
+    print('现在 history API 应该能返回 price > 0 的成交记录')

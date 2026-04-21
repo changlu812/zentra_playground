@@ -121,6 +121,8 @@ def trade_limit_order(info, args):
     highest_buy_price = None
     take_amount = 0
 
+    total_base = 0
+    total_quote = 0
     while True:
         sell, _ = get('trade', f'{pair}_sell', None, str(trade_sell_id))
         if not sell:
@@ -144,14 +146,16 @@ def trade_limit_order(info, args):
             matched_price = sell_price
             dx_base = min(-sell[1], buy[1])
             dx_quote = dx_base * matched_price // K
+            total_base += dx_base
+            total_quote += dx_quote
             sell[1] += dx_base
             sell[2] -= dx_quote
             buy[1] -= dx_base
             buy[2] += dx_quote
             if buy_or_sell == 'buy':
-                take_amount += dx_base
-            else:
                 take_amount += dx_quote
+            else:
+                take_amount += dx_base
             balance, _ = get(base_tick, 'balance', 0, buy[0])
             balance += dx_base
             assert balance >= 0
@@ -201,10 +205,11 @@ def trade_limit_order(info, args):
     make_amount -= take_amount
     assert make_amount >= 0
     price = 0
+    if total_base > 0:
+        price = total_quote * K // total_base
     event('TradeOrderMake', [pair, buy_or_sell, addr, make_amount, price, order_id])
     if take_amount > 0:
-        cost = 0
-        event('TradeOrderTake', [pair, buy_or_sell, addr, take_amount, price, cost])
+        event('TradeOrderTake', [pair, buy_or_sell, addr, take_amount, price, 0])
 
 
 def trade_market_order(info, args):
