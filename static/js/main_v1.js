@@ -211,17 +211,17 @@ class MarketPanel extends React.Component {
       rc('div', { className: 'asks' },
         asks.slice(0, 10).reverse().map((ask, index) =>
           rc('div', { key: index, className: 'flex justify-between p-1 text-red-500' },
-            rc('span', null, ethers.formatUnits(toBigInt(ask[3]), 6)),
-            rc('span', null, ethers.formatUnits(toBigInt(ask[1]), 18).substring(0, 8)),
+            rc('span', null, ethers.formatUnits(toBigInt(ask.price), 6)),
+            rc('span', null, ethers.formatUnits(toBigInt(ask.base), 18).substring(0, 8)),
           )
         )
       ),
-      rc('div', { className: 'current-price p-2 text-lg font-bold text-center' }, bids.length > 0 ? ethers.formatUnits(toBigInt(bids[0][3]), 6) : (asks.length > 0 ? ethers.formatUnits(toBigInt(asks[0][3]), 6) : '-')),
+      rc('div', { className: 'current-price p-2 text-lg font-bold text-center' }, bids.length > 0 ? ethers.formatUnits(toBigInt(bids[0].price), 6) : (asks.length > 0 ? ethers.formatUnits(toBigInt(asks[0].price), 6) : '-')),
       rc('div', { className: 'bids' },
         bids.slice(0, 10).map((bid, index) =>
           rc('div', { key: index, className: 'flex justify-between p-1 text-green-500' },
-            rc('span', null, ethers.formatUnits(toBigInt(bid[3]), 6)),
-            rc('span', null, ethers.formatUnits(toBigInt(bid[1]), 18).substring(0, 8)),
+            rc('span', null, ethers.formatUnits(toBigInt(bid.price), 6)),
+            rc('span', null, ethers.formatUnits(toBigInt(bid.base), 18).substring(0, 8)),
           )
         )
       )
@@ -651,6 +651,7 @@ class App extends React.Component {
     try {
       const response = await fetch(`${TESTNET_INDEXER_URL}/api/orderbook?base=${BASE_TOKEN}&quote=${QUOTE_TOKEN}`);
       const data = await response.json();
+      console.log('Orderbook data:', data);
       this.setState(
         {
           orderbook: { buys: data.buys, sells: data.sells },
@@ -771,6 +772,10 @@ class App extends React.Component {
     this.initializeWallet();
     this.loadInitialMarketData();
 
+    this.orderbookInterval = setInterval(() => {
+      this.loadInitialMarketData();
+    }, 3000);
+
     if (window.ethereum) {
       window.ethereum.on('accountsChanged', (accounts) => {
         this.initializeWallet();
@@ -781,6 +786,9 @@ class App extends React.Component {
   componentWillUnmount() {
     window.removeEventListener('resize', this.handleResize);
     this.teardownStream();
+    if (this.orderbookInterval) {
+      clearInterval(this.orderbookInterval);
+    }
     if (window.ethereum && window.ethereum.removeListener) {
       window.ethereum.removeListener('accountsChanged', this.initializeWallet);
     }

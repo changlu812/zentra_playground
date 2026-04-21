@@ -144,9 +144,104 @@ class HistoryAPIHandler(tornado.web.RequestHandler):
 
 class EventsAPIHandler(tornado.web.RequestHandler):
     def get(self):
-        txhash = self.get_argument('txhash')
-        print(txhash)
-        self.finish({'result': []})
+        self.set_header("Access-Control-Allow-Origin", "*")
+        self.set_header("Access-Control-Allow-Headers", "x-requested-with")
+        self.set_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
+
+        chain = self.get_argument('chain', 'base')
+
+        events = []
+
+        block_number = self.get_argument('blockno', None)
+        if block_number is not None:
+            block_number = int(block_number)
+            block_hash = space.block_hashes.get(block_number, '')
+            tx_hashes = space.blocks.get(block_number, [])
+
+            block_events = space.events.get(block_number, [])
+            formatted_events = [{
+                'event': evt['event'],
+                'args': [str(arg) for arg in evt['args']]
+            } for evt in block_events]
+
+            for tx_hash in tx_hashes:
+                events.append([tx_hash, formatted_events])
+
+            self.finish({'events': events, 'blockno': block_number, 'block_hash': block_hash, 'chain': chain})
+            return
+
+        tx_hash = self.get_argument('txhash', '')
+        tx_hash = tx_hash.replace('0x', '')
+
+        if tx_hash in space.transactions:
+            tx = space.transactions[tx_hash]
+            block_number = tx.get('blockNumber', 0)
+            block_events = space.events.get(block_number, [])
+            formatted_events = [{
+                'event': evt['event'],
+                'args': [str(arg) for arg in evt['args']]
+            } for evt in block_events]
+            events.append([tx_hash, formatted_events])
+
+        self.finish({'events': events, 'tx_hash': tx_hash, 'chain': chain})
+
+
+# class EventsAPIHandler(tornado.web.RequestHandler):
+#     def get(self):
+#         self.set_header("Access-Control-Allow-Origin", "*")
+#         self.set_header("Access-Control-Allow-Headers", "x-requested-with")
+#         self.set_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
+
+#         global global_input
+#         chain = self.get_argument('chain', 'base')
+#         assert chain in setting.chains
+#         it1 = global_input.iteritems()
+#         events = []
+#         try:
+#             block_number = int(self.get_argument('blockno', None))
+#         except:
+#             tx_hash = self.get_argument('txhash', '')
+#             tx_hash = tx_hash.replace('0x', '')
+#             k = ('%s-tx-%s-' % (chain, tx_hash) ).encode('utf8')
+#             it1.seek(k)
+#             for key1, value_json1 in it1:
+#                 print('key1', key1)
+#                 if not key1.startswith(k):
+#                     break
+#                 tx = json.loads(value_json1)
+#                 events.append([tx_hash, tx['events']])
+
+#             self.finish({'events': events, 'tx_hash': tx_hash, 'chain':chain})
+#             return
+
+#         it = global_input.iteritems()
+#         reversed_height = str(setting.REVERSED_NO - block_number).zfill(16)
+#         k = ('%s-block-%s-' % (chain, reversed_height)).encode('utf8')
+#         it.seek(k)
+
+#         for key, value_json in it:
+#             # print('block', block_number, key)
+#             if not key.startswith(k):
+#                 break
+
+#             _, _, _, block_hash = key.decode('utf8').split('-')
+#             block = json.loads(value_json)
+#             tx_hashes = block.get('transactions', [])
+#             # chain = block['chain']
+#             for tx_hash in tx_hashes:
+#                 k = ('%s-tx-%s-' % (chain, tx_hash) ).encode('utf8')
+#                 it1.seek(k)
+#                 for key1, value_json1 in it1:
+#                     print('key1', key1)
+#                     if not key1.startswith(k):
+#                         break
+#                     tx = json.loads(value_json1)
+#                     events.append([tx_hash, tx['events']])
+#                     break
+
+#             break
+#         self.finish({'events': events, 'blockno': block_number, 'block_hash': block_hash, 'chain':chain})
+
 
 def start_server():
     space._init_block_mode()

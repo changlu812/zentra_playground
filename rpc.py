@@ -312,9 +312,9 @@ class RPCHandler(tornado.web.RequestHandler):
                 block_hash = ''.join(random.choices(string.hexdigits.lower(), k=64))
                 space.block_hashes[space.latest_block_number] = block_hash
             
-            if block_hash not in space.blocks:
-                space.blocks[block_hash] = []
-            space.blocks[block_hash].append(tx_hash.hex().replace('0x', ''))
+            if space.latest_block_number not in space.blocks:
+                space.blocks[space.latest_block_number] = []
+            space.blocks[space.latest_block_number].append(tx_hash.hex().replace('0x', ''))
             
             space.transactions[tx_hash.hex().replace('0x', '')] = {
                 'blockNumber': space.latest_block_number,
@@ -369,9 +369,9 @@ class RPCHandler(tornado.web.RequestHandler):
                 block_hash = ''.join(random.choices(string.hexdigits.lower(), k=64))
                 space.block_hashes[space.latest_block_number] = block_hash
             
-            if block_hash not in space.blocks:
-                space.blocks[block_hash] = []
-            space.blocks[block_hash].append(tx_hash_hex)
+            if space.latest_block_number not in space.blocks:
+                space.blocks[space.latest_block_number] = []
+            space.blocks[space.latest_block_number].append(tx_hash_hex)
 
             space.transactions[tx_hash_hex] = {
                 'blockNumber': space.latest_block_number,
