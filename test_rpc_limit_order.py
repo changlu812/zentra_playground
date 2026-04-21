@@ -17,14 +17,14 @@ if __name__ == '__main__':
     
     # Buy 0.1 BTC at price 50000 USDC (spend 5000 USDC)
     # base_amount = -0.1 BTC, quote_amount = 5000 USDC
-    call = '{"p": "zentest3", "f": "trade_limit_order", "a": ["BTC", -100000000000000000, "USDC", 5000000000]}'
+    account_index = int(sys.argv[1])
+    print(account_index)
+    btc_value = float(sys.argv[2])
+    print(btc_value)
+    usdc_value = float(sys.argv[3])
+    print(usdc_value)
+    call = {"p": "zentest3", "f": "trade_limit_order", "a": ["BTC", int(btc_value*10**18), "USDC", int(usdc_value*10**6)]}
     print(call)
-    tx_hash = transaction(accounts[0], call)
-    print(tx_hash)
-
-    # Sell 0.05 BTC at price 50000 USDC (get 2500 USDC)
-    # base_amount = 0.05 BTC, quote_amount = -2500 USDC
-    call = '{"p": "zentest3", "f": "trade_limit_order", "a": ["BTC", 50000000000000000, "USDC", -2500000000]}'
-    print(call)
-    tx_hash = transaction(accounts[0], call)
+    call_json = json.dumps(call)
+    tx_hash = transaction(accounts[account_index], call_json)
     print(tx_hash)

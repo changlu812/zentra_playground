@@ -58,6 +58,10 @@ namespace = {
     'a': accounts,
     '__name__': '__console__',
     '__doc__': None,
+    'blocks': space.blocks,
+    'events': space.events,
+    'transactions': space.transactions,
+    'nonces': space.nonces,
 }
 
 
