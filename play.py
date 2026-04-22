@@ -110,29 +110,34 @@ class HistoryAPIHandler(tornado.web.RequestHandler):
         base = self.get_argument('base')
         quote = self.get_argument('quote')
         pair = f'{base}_{quote}'
-        
+
         start_block = int(self.get_argument('start_block', 0))
         end_block = int(self.get_argument('end_block', space.latest_block_number))
         limit = int(self.get_argument('limit', 100))
-        
+
         trades = []
-        for evt in space.events:
-            if evt['block'] < start_block or evt['block'] > end_block:
-                continue
-            if evt['event'] in ('TradeOrderTake', 'TradeOrderMake') and pair in evt['args']:
-                event_data = {
-                    'block': evt['block'],
-                    'event': evt['event'],
-                    'pair': evt['args'][0],
-                    'side': evt['args'][1],
-                    'address': evt['args'][2],
-                    'amount': str(evt['args'][3]),
-                    'price': str(evt['args'][4]),
-                }
-                trades.append(event_data)
-                if len(trades) >= limit:
-                    break
-        
+        for block_num in range(start_block, end_block + 1):
+            block_events = space.events.get(block_num, [])
+            for evt in block_events:
+                if evt['event'] in ('TradeOrderTake', 'TradeOrderMake') and pair in evt['args']:
+                    price = int(evt['args'][4])
+                    if price == 0:
+                        continue
+                    event_data = {
+                        'block': block_num,
+                        'event': evt['event'],
+                        'pair': evt['args'][0],
+                        'side': evt['args'][1],
+                        'address': evt['args'][2],
+                        'amount': str(evt['args'][3]),
+                        'price': str(price),
+                    }
+                    trades.append(event_data)
+                    if len(trades) >= limit:
+                        break
+            if len(trades) >= limit:
+                break
+
         self.finish({
             'trades': trades,
             'pair': pair,
@@ -150,8 +155,6 @@ class EventsAPIHandler(tornado.web.RequestHandler):
 
         chain = self.get_argument('chain', 'base')
 
-        events = []
-
         block_number = self.get_argument('blockno', None)
         if block_number is not None:
             block_number = int(block_number)
@@ -159,15 +162,21 @@ class EventsAPIHandler(tornado.web.RequestHandler):
             tx_hashes = space.blocks.get(block_number, [])
 
             block_events = space.events.get(block_number, [])
-            formatted_events = [{
-                'event': evt['event'],
-                'args': [str(arg) for arg in evt['args']]
-            } for evt in block_events]
 
-            for tx_hash in tx_hashes:
-                events.append([tx_hash, formatted_events])
+            events_with_tx = []
+            for i, evt in enumerate(block_events):
+                evt_with_tx = dict(evt)
+                evt_with_tx['tx_index'] = i
+                evt_with_tx['tx_hash'] = tx_hashes[i] if i < len(tx_hashes) else ''
+                events_with_tx.append(evt_with_tx)
 
-            self.finish({'events': events, 'blockno': block_number, 'block_hash': block_hash, 'chain': chain})
+            self.finish({
+                'tx_hashes': tx_hashes,
+                'events': events_with_tx,
+                'blockno': block_number,
+                'block_hash': block_hash,
+                'chain': chain
+            })
             return
 
         tx_hash = self.get_argument('txhash', '')
@@ -177,13 +186,18 @@ class EventsAPIHandler(tornado.web.RequestHandler):
             tx = space.transactions[tx_hash]
             block_number = tx.get('blockNumber', 0)
             block_events = space.events.get(block_number, [])
-            formatted_events = [{
-                'event': evt['event'],
-                'args': [str(arg) for arg in evt['args']]
-            } for evt in block_events]
-            events.append([tx_hash, formatted_events])
 
-        self.finish({'events': events, 'tx_hash': tx_hash, 'chain': chain})
+            events_with_tx = []
+            for i, evt in enumerate(block_events):
+                evt_with_tx = dict(evt)
+                evt_with_tx['tx_index'] = i
+                evt_with_tx['tx_hash'] = tx_hash
+                events_with_tx.append(evt_with_tx)
+
+            self.finish({'tx_hash': tx_hash, 'blockno': block_number, 'events': events_with_tx, 'chain': chain})
+        else:
+            self.finish({'tx_hash': tx_hash, 'events': [], 'chain': chain})
+
 
 
 # class EventsAPIHandler(tornado.web.RequestHandler):
