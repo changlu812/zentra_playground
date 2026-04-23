@@ -343,7 +343,8 @@ class OrderPanel extends React.Component {
     tokens.forEach(async (token) => {
       if (!token || !decimals[token]) return;
       try {
-        const response = await fetch(`${TESTNET_INDEXER_URL}/api/get_latest_state?prefix=${CHAIN}-${token}-balance:${address.toLowerCase()}`);
+        const prefix = `${token}-balance:${address.toLowerCase()}`;
+        const response = await fetch(`${TESTNET_INDEXER_URL}/api/get_latest_state?prefix=${prefix}`);
         const data_json = await response.text();
         const data = parseJsonWithBigInt(data_json);
         const formattedBalance = ethers.formatUnits(BigInt(data.result || 0), decimals[token] || 18);
