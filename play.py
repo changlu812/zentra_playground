@@ -123,14 +123,15 @@ class HistoryAPIHandler(tornado.web.RequestHandler):
                     price = int(evt['args'][4])
                     if price == 0:
                         continue
+                    base_amount = int(evt['args'][3])
                     event_data = {
                         'block': block_num,
                         'event': evt['event'],
                         'pair': evt['args'][0],
                         'side': evt['args'][1],
                         'address': evt['args'][2],
-                        'amount': str(evt['args'][3]),
-                        'price': str(price),
+                        'amount': str(base_amount),
+                        'price': str(price / (10 ** 6)),
                     }
                     trades.append(event_data)
                     if len(trades) >= limit:

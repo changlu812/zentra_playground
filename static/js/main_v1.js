@@ -77,8 +77,7 @@ initChart() {
       grid: { vertLines: { color: '#2d3748' }, horzLines: { color: '#2d3748' } },
       timeScale: {
         tickMarkFormatter: (time) => {
-          const block = Math.max(0, Math.round((time - 1704067200) / 1000));
-          return `b${block}`;
+          return `b${time}`;
         },
       },
     });
@@ -88,32 +87,36 @@ initChart() {
     });
   }
 
-  convertToCandles = (trades) => {
-    const BASE_TIME = 1704067200; // base timestamp
-    const candleMap = {};
-    trades.forEach(trade => {
-      const block = trade.block;
-      if (!candleMap[block]) {
-        candleMap[block] = { 
-          time: BASE_TIME + block * 1000,  // 1000ms = display tick
-          open: 65000, high: 65000, low: 65000, close: 65000, 
-          block: block,
-          volume: 0, count: 0 
-        };
-      }
-      const amount = Math.abs(parseFloat(trade.amount)) || 1000000;
-      const price = 65000;
+  // convertToCandles = (trades) => {
+  //   const BASE_TIME = 1704067200; // base timestamp
+  //   const candleMap = {};
+  //   trades.forEach(trade => {
+  //     const block = trade.block;
+  //     if (!candleMap[block]) {
+  //       candleMap[block] = { 
+  //         time: BASE_TIME + block * 1000,  // 1000ms = display tick
+  //         open: 65000,
+  //         high: 65000,
+  //         low: 65000,
+  //         close: 65000, 
+  //         block: block,
+  //         volume: 0,
+  //         count: 0 
+  //       };
+  //     }
+  //     const amount = Math.abs(parseFloat(trade.amount)) || 1000000;
+  //     const price = 65000;
       
-      const c = candleMap[block];
-      c.close = price;
-      c.high = Math.max(c.high, price);
-      c.low = Math.min(c.low, price);
-      if (c.count === 0) c.open = price;
-      c.volume += amount;
-      c.count++;
-    });
-    return Object.values(candleMap).filter(c => c.count > 0).sort((a, b) => a.time - b.time);
-  }
+  //     const c = candleMap[block];
+  //     c.close = price;
+  //     c.high = Math.max(c.high, price);
+  //     c.low = Math.min(c.low, price);
+  //     if (c.count === 0) c.open = price;
+  //     c.volume += amount;
+  //     c.count++;
+  //   });
+  //   return Object.values(candleMap).filter(c => c.count > 0).sort((a, b) => a.time - b.time);
+  // }
 
   loadHistory = async () => {
     try {
@@ -132,14 +135,22 @@ initChart() {
   }
 
   convertToCandles = (trades) => {
-    const BLOCK_TIME = 2;
     const candleMap = {};
     let lastPrice = 0;
 
     trades.forEach(trade => {
       const block = trade.block;
       if (!candleMap[block]) {
-        candleMap[block] = { time: block * BLOCK_TIME, open: lastPrice, high: lastPrice, low: lastPrice, close: lastPrice, volume: 0, count: 0 };
+        candleMap[block] = { 
+          time: block, 
+          open: lastPrice,
+          high: lastPrice, 
+          low: lastPrice,
+          close: lastPrice, 
+          block: block, 
+          volume: 0,
+          count: 0
+        };
       }
       const price = parseFloat(trade.price) || 0;
       const amount = Math.abs(parseFloat(trade.amount)) || 0;
@@ -159,7 +170,7 @@ initChart() {
     const candles = Object.values(candleMap).filter(c => c.count > 0);
     if (candles.length === 0) return [];
 
-    let lastClose = 62000;
+    let lastClose = 0;
     candles.forEach(c => {
       if (c.close === 0) c.close = lastClose;
       if (c.open === 0) c.open = lastClose;
@@ -230,7 +241,7 @@ class MarketPanel extends React.Component {
         asks.slice(0, 10).reverse().map((ask, index) =>
           rc('div', { key: index, className: 'flex justify-between p-1 text-red-500' },
             rc('span', null, ethers.formatUnits(toBigInt(ask.price), 6)),
-            rc('span', null, ethers.formatUnits(toBigInt(ask.base), 18).substring(0, 8)),
+            rc('span', null, ethers.formatUnits(-toBigInt(ask.base), 18).substring(0, 8)),
           )
         )
       ),
@@ -669,7 +680,7 @@ class App extends React.Component {
     try {
       const response = await fetch(`${TESTNET_INDEXER_URL}/api/orderbook?base=${BASE_TOKEN}&quote=${QUOTE_TOKEN}`);
       const data = await response.json();
-      console.log('Orderbook data:', data);
+      // console.log('Orderbook data:', data);
       this.setState(
         {
           orderbook: { buys: data.buys, sells: data.sells },
