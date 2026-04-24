@@ -87,100 +87,21 @@ initChart() {
     });
   }
 
-  // convertToCandles = (trades) => {
-  //   const BASE_TIME = 1704067200; // base timestamp
-  //   const candleMap = {};
-  //   trades.forEach(trade => {
-  //     const block = trade.block;
-  //     if (!candleMap[block]) {
-  //       candleMap[block] = { 
-  //         time: BASE_TIME + block * 1000,  // 1000ms = display tick
-  //         open: 65000,
-  //         high: 65000,
-  //         low: 65000,
-  //         close: 65000, 
-  //         block: block,
-  //         volume: 0,
-  //         count: 0 
-  //       };
-  //     }
-  //     const amount = Math.abs(parseFloat(trade.amount)) || 1000000;
-  //     const price = 65000;
-      
-  //     const c = candleMap[block];
-  //     c.close = price;
-  //     c.high = Math.max(c.high, price);
-  //     c.low = Math.min(c.low, price);
-  //     if (c.count === 0) c.open = price;
-  //     c.volume += amount;
-  //     c.count++;
-  //   });
-  //   return Object.values(candleMap).filter(c => c.count > 0).sort((a, b) => a.time - b.time);
-  // }
 
   loadHistory = async () => {
     try {
       const response = await fetch(`${TESTNET_INDEXER_URL}/api/history?base=BTC&quote=USDC`);
       const data = await response.json();
-      const trades = data.trades || [];
+      const candles = data.candles || [];
       
-      const candles = this.convertToCandles(trades);
       if (this.candleSeries && candles.length > 0) {
         this.candleSeries.setData(candles);
       }
-      this.setState({ history: trades });
+      this.setState({ history: candles });
     } catch (error) {
       console.error('Failed to load history:', error);
     }
-  }
-
-  convertToCandles = (trades) => {
-    const candleMap = {};
-    let lastPrice = 0;
-
-    trades.forEach(trade => {
-      const block = trade.block;
-      if (!candleMap[block]) {
-        candleMap[block] = { 
-          time: block, 
-          open: lastPrice,
-          high: lastPrice, 
-          low: lastPrice,
-          close: lastPrice, 
-          block: block, 
-          volume: 0,
-          count: 0
-        };
-      }
-      const price = parseFloat(trade.price) || 0;
-      const amount = Math.abs(parseFloat(trade.amount)) || 0;
-      const c = candleMap[block];
-
-      if (price > 0) {
-        lastPrice = price;
-        c.close = price;
-        c.high = c.count === 0 ? price : Math.max(c.high, price);
-        c.low = c.count === 0 ? price : Math.min(c.low, price);
-        c.open = c.count === 0 ? price : c.open;
-      }
-      c.volume += amount;
-      c.count++;
-    });
-
-    const candles = Object.values(candleMap).filter(c => c.count > 0);
-    if (candles.length === 0) return [];
-
-    let lastClose = 0;
-    candles.forEach(c => {
-      if (c.close === 0) c.close = lastClose;
-      if (c.open === 0) c.open = lastClose;
-      if (c.high === 0) c.high = lastClose;
-      if (c.low === 0) c.low = lastClose;
-      lastClose = c.close;
-    });
-
-    return candles;
-  }
+  } 
 
   render() {
     const { history } = this.state;

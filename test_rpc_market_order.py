@@ -22,6 +22,3 @@ if __name__ == '__main__':
     call_json = json.dumps(call)
     tx_hash = transaction(accounts[account_index], call_json)
     print(tx_hash)
-
-    print('=== next block ===')
-    next_block()

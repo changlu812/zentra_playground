@@ -113,9 +113,8 @@ class HistoryAPIHandler(tornado.web.RequestHandler):
 
         start_block = int(self.get_argument('start_block', 0))
         end_block = int(self.get_argument('end_block', space.latest_block_number))
-        limit = int(self.get_argument('limit', 100))
 
-        trades = []
+        candle_map = {}
         for block_num in range(start_block, end_block + 1):
             block_events = space.events.get(block_num, [])
             for evt in block_events:
@@ -124,23 +123,39 @@ class HistoryAPIHandler(tornado.web.RequestHandler):
                     if price == 0:
                         continue
                     base_amount = int(evt['args'][3])
-                    event_data = {
-                        'block': block_num,
-                        'event': evt['event'],
-                        'pair': evt['args'][0],
-                        'side': evt['args'][1],
-                        'address': evt['args'][2],
-                        'amount': str(base_amount),
-                        'price': str(price / (10 ** 6)),
-                    }
-                    trades.append(event_data)
-                    if len(trades) >= limit:
-                        break
-            if len(trades) >= limit:
-                break
+                    usdc_amount = base_amount * price // (10 ** 6)
+
+                    if block_num not in candle_map:
+                        candle_map[block_num] = {
+                            'time': block_num,
+                            'block': block_num,
+                            'open': 0,
+                            'high': 0,
+                            'low': 0,
+                            'close': 0,
+                            'volume': 0,
+                        }
+                    c = candle_map[block_num]
+                    if c['open'] == 0:
+                        c['open'] = price
+                        c['high'] = price
+                        c['low'] = price
+                    c['close'] = price
+                    c['high'] = max(c['high'], price)
+                    c['low'] = min(c['low'], price)
+                    c['volume'] += usdc_amount
+
+        candles = list(candle_map.values())
+        for i, c in enumerate(candles):
+            c['open'] = c['open'] / (10 ** 6)
+            c['high'] = c['high'] / (10 ** 6)
+            c['low'] = c['low'] / (10 ** 6)
+            c['close'] = c['close'] / (10 ** 6)
+
+        candles.sort(key=lambda x: x['time'])
 
         self.finish({
-            'trades': trades,
+            'candles': candles,
             'pair': pair,
             'start_block': start_block,
             'end_block': end_block,
