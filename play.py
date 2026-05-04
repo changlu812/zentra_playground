@@ -225,7 +225,7 @@ class DebugBaseHandler(tornado.web.RequestHandler):
 
 class DebugOverviewHandler(DebugBaseHandler):
     def get(self):
-        total_state_entries = sum(len(s) for s in space.states)
+        total_state_entries = sum(len(s) for s in space.states.values())
         total_events = sum(len(v) for v in space.events.values())
         total_txs = len(space.transactions)
 
@@ -304,9 +304,7 @@ class DebugStateHandler(DebugBaseHandler):
         entries = []
         count = 0
         max_entries = 500
-        for block_num in range(space.latest_block_number, -1, -1):
-            if block_num >= len(space.states):
-                continue
+        for block_num in sorted(space.states.keys(), reverse=True):
             state = space.states[block_num]
             for key in sorted(state.keys()):
                 if prefix and not key.startswith(prefix):
@@ -444,7 +442,7 @@ if __name__ == "__main__":
     >>> get('USDC', 'balance', 0, 'alice')
     100
     >>> states
-    [{'asset-balance': {'alice': 100}}]
+    {0: {'asset-balance': ('alice', 100)}}
     >>> nextblock()
     >>> setsender(a[0])
     >>> asset_create('USDC')

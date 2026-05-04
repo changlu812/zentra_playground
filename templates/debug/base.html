@@ -36,6 +36,14 @@
                 trs[i].style.display = txt.toUpperCase().includes(filter) ? "" : "none";
             }
         }
+        document.addEventListener("DOMContentLoaded", function() {
+            document.querySelectorAll(".collapsible").forEach(function(el) {
+                el.addEventListener("click", function() {
+                    const target = el.getAttribute("data-target");
+                    if (target) toggle(target);
+                });
+            });
+        });
     </script>
 </head>
 <body>

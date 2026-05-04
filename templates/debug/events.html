@@ -4,7 +4,7 @@
 <table>
     <tr><th>Block</th><th>Event Count</th></tr>
     {% for blk in blocks %}
-    <tr class="collapsible" onclick="toggle('evts_{{ blk['num'] }}')">
+    <tr class="collapsible" data-target="evts_{{ blk['num'] }}">
         <td><b>Block {{ blk['num'] }}</b></td>
         <td>{{ blk['count'] }} events</td>
     </tr>
