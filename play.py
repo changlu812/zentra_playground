@@ -118,7 +118,7 @@ class HistoryAPIHandler(tornado.web.RequestHandler):
         for block_num in range(start_block, end_block + 1):
             block_events = space.events.get(block_num, [])
             for evt in block_events:
-                if evt['event'] == 'TradeOrderTake' and pair in evt['args']:
+                if evt['event'] in ('TradeLimitTake', 'TradeMarketTake') and pair in evt['args']:
                     price = int(evt['args'][4])
                     if price == 0:
                         continue
